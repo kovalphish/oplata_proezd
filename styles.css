@@ -1,0 +1,247 @@
+/* Основные настройки */
+body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    background-color: #F3F1ED; /* Светлый фон */
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    height: 100vh;
+    color: #1B123F; /* Темно-фиолетовый текст */
+}
+
+/* Шапка */
+.header {
+    background-color: #1B123F;
+    width: 100%;
+    padding: 15px 0;
+    text-align: center;
+    box-sizing: border-box;
+    flex-shrink: 0;
+}
+
+.header h1 {
+    color: white;
+    font-size: 16px;
+    margin: 0;
+    font-weight: 500;
+}
+
+/* Контейнер по центру */
+.main {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 90%;
+    max-width: 400px;
+    text-align: center;
+    padding-bottom: 50px;
+}
+
+.logo {
+    width: 120px;
+    margin-bottom: 25px;
+}
+
+/* Настройки редактируемого текста */
+[contenteditable]:hover {
+    outline: 1px dashed #ccc;
+    cursor: text;
+}
+[contenteditable]:focus {
+    outline: none;
+    border-bottom: 1px solid #1B123F;
+}
+
+.vehicle {
+    font-size: 18px;
+    font-weight: bold;
+    margin-bottom: 10px;
+}
+
+.price {
+    font-size: 48px;
+    font-weight: 600;
+    margin: 5px 0 15px 0;
+}
+
+#fixedTime {
+    font-size: 14px;
+    color: #666;
+    margin-bottom: 5px;
+}
+
+.vehicle-id {
+    font-size: 14px;
+    color: #aaa;
+    margin-bottom: 30px;
+}
+
+/* Кнопка */
+.pay-btn {
+    background-color: #1B123F;
+    color: white;
+    border: none;
+    width: 100%; /* На всю ширину */
+    padding: 15px;
+    border-radius: 12px;
+    font-size: 16px;
+    cursor: pointer;
+    font-weight: 500;
+    margin-top: 20px;
+}
+
+.pay-btn:active {
+    opacity: 0.9;
+}
+
+/* --- Модальное окно (Чек) --- */
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0,0,0,0.6);
+    align-items: center;
+    justify-content: center;
+}
+
+.modal[style*="display: flex"] {
+    display: flex !important;
+}
+
+/* 1. БЕЛОЕ ОКНО НА ВЕСЬ ЭКРАН */
+.modal-content {
+    background-color: #fff;
+    padding: 0;
+    margin: 0;
+    border-radius: 0;
+    
+    /* Растягиваем на весь экран */
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    
+    /* Убираем тени, так как окно во весь экран */
+    box-shadow: none;
+    
+    /* МАГИЯ ЦЕНТРИРОВАНИЯ: */
+    display: flex;
+    flex-direction: column;
+    align-items: center;     /* Центрируем чек по горизонтали */
+    justify-content: center; /* Центрируем чек по вертикали */
+    overflow-y: auto;        /* Разрешаем прокрутку, если экран маленький */
+}
+
+/* 2. САМ ТЕКСТ ЧЕКА (Узкий столбик) */
+.receipt-body {
+    width: 100%;
+    max-width: 400px; /* Ограничиваем ширину, чтобы текст не разбегался */
+    padding: 20px;    /* Отступы внутри столбика */
+    box-sizing: border-box;
+    
+    /* Текст внутри выравниваем как обычно */
+    color: #000;
+    font-family: Arial, sans-serif;
+    
+    /* Если экран мобильный, чек займет всю ширину, если ПК — останется узким */
+}
+
+/* 3. КРЕСТИК (чтобы был в углу экрана) */
+.close {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    font-size: 32px;
+    cursor: pointer;
+    color: #333;
+    z-index: 100; /* Чтобы точно был поверх всего */
+}
+
+/* Внутренности чека */
+.receipt-body {
+    padding: 40px 20px 30px 20px;
+    color: #000;
+    font-family: Arial, sans-serif;
+}
+
+/* Желтый щит логотипа */
+.t-logo-wrap {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 20px;
+}
+.t-logo {
+    width: 50px;
+    height: 50px;
+    background-color: #FFDD2D;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 28px;
+    font-weight: 900;
+    font-family: 'Arial Black', sans-serif;
+    /* Делаем форму щита */
+    clip-path: polygon(0 0, 100% 0, 100% 80%, 50% 100%, 0 80%);
+    -webkit-clip-path: polygon(0 0, 100% 0, 100% 80%, 50% 100%, 0 80%);
+}
+
+.receipt-date {
+    font-size: 13px;
+    color: #999;
+    margin-bottom: 15px;
+}
+
+.receipt-title-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    margin-bottom: 15px;
+    border-bottom: 2px solid #FFDD2D;
+    padding-bottom: 15px;
+}
+
+.receipt-title {
+    font-size: 26px;
+    font-weight: bold;
+}
+
+.receipt-sum-big {
+    font-size: 26px;
+    font-weight: bold;
+}
+
+.receipt-row {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 10px;
+    font-size: 13px;
+}
+
+.row-title {
+    color: #777;
+    flex: 1;
+}
+
+.row-value {
+    color: #000;
+    text-align: right;
+    flex: 1;
+    font-weight: 500;
+    word-break: break-word; /* Чтобы длинные номера переносились */
+    margin-left: 10px;
+}
+
+.receipt-footer {
+    margin-top: 25px;
+    font-size: 11px;
+    color: #999;
+    line-height: 1.4;
+}

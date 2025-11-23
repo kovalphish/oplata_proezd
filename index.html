@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="ru">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Оплата проезда</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+    <header class="header">
+        <h1>Оплата проезда</h1>
+    </header>
+
+    <main class="main">
+        <img src="logo.svg" class="logo" alt="Логотип СБП">
+        
+        <div class="vehicle" contenteditable="true">Автобус №4</div>
+        
+        <div class="price" contenteditable="true">35 ₽</div>
+        
+        <div id="fixedTime"></div>
+        
+        <div class="vehicle-id">Т/С: 167</div>
+        
+        <button id="payBtn" class="pay-btn">Оплатить</button>
+    </main>
+
+    <div id="modal" class="modal">
+        <div class="modal-content">
+            <span id="closeBtn" class="close">&times;</span>
+            
+            <div class="receipt-body">
+                <div class="t-logo-wrap">
+                    <div class="t-logo">T</div>
+                </div>
+
+                <div class="receipt-date" id="receiptDate"></div>
+
+                <div class="receipt-title-row">
+                    <div class="receipt-title">Итого</div>
+                    <div class="receipt-sum-big" id="receiptSumBig">38 ₽</div>
+                </div>
+
+                <div class="receipt-row">
+                    <span class="row-title">Покупка</span>
+                    <span class="row-value">По QR-коду</span>
+                </div>
+                <div class="receipt-row">
+                    <span class="row-title">Статус</span>
+                    <span class="row-value">Успешно</span>
+                </div>
+                <div class="receipt-row">
+                    <span class="row-title">Сумма</span>
+                    <span class="row-value" id="receiptSumSmall">38 ₽</span>
+                </div>
+                <div class="receipt-row">
+                    <span class="row-title">Магазин</span>
+                    <span class="row-value">Оплата проезда на bilet.nspk.ru</span>
+                </div>
+                <div class="receipt-row">
+                    <span class="row-title">Счет списания</span>
+                    <span class="row-value">408178106000****2504</span>
+                </div>
+                <div class="receipt-row">
+                    <span class="row-title">Наименование ЮЛ или ИП</span>
+                    <span class="row-value">ООО "БЕНТОК-СМОЛЕНСК"</span>
+                </div>
+                 <div class="receipt-row">
+                    <span class="row-title">Идентификатор операции</span>
+                    <span class="row-value">A53221215425581F00000100116</span>
+                </div>
+                 <div class="receipt-row">
+                    <span class="row-title">СБП</span>
+                    <span class="row-value">30701</span>
+                </div>
+
+                <div class="receipt-footer">
+                    АО «ТБАНК»<br>
+                    БИК 044525974 ИНН 7710140679<br>
+                    По вопросам зачисления обращайтесь к получателю
+                </div>
+            </div>
+            </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
