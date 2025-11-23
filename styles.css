@@ -2,12 +2,12 @@
 body {
     margin: 0;
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-    background-color: #F3F1ED; /* Светлый фон */
+    background-color: #F3F1ED;
     display: flex;
     flex-direction: column;
     align-items: center;
     height: 100vh;
-    color: #1B123F; /* Темно-фиолетовый текст */
+    color: #1B123F;
 }
 
 /* Шапка */
@@ -79,25 +79,24 @@ body {
     margin-bottom: 30px;
 }
 
-/* Кнопка */
+/* Кнопки оплаты */
 .pay-btn {
     background-color: #1B123F;
     color: white;
     border: none;
-    width: 100%; /* На всю ширину */
+    width: 100%;
     padding: 15px;
     border-radius: 12px;
     font-size: 16px;
     cursor: pointer;
     font-weight: 500;
-    margin-top: 20px;
+    margin-top: 15px;
+}
+.scanner-btn-switch {
+    background-color: #6a5acd;
 }
 
-.pay-btn:active {
-    opacity: 0.9;
-}
-
-/* --- Модальное окно (Чек) --- */
+/* --- СТИЛИ ДЛЯ ЧЕКА --- */
 .modal {
     display: none;
     position: fixed;
@@ -111,50 +110,22 @@ body {
     justify-content: center;
 }
 
-.modal[style*="display: flex"] {
-    display: flex !important;
-}
-
-/* 1. БЕЛОЕ ОКНО НА ВЕСЬ ЭКРАН */
 .modal-content {
     background-color: #fff;
     padding: 0;
     margin: 0;
     border-radius: 0;
-    
-    /* Растягиваем на весь экран */
     position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    
-    /* Убираем тени, так как окно во весь экран */
+    top: 0; left: 0;
+    width: 100%; height: 100%;
     box-shadow: none;
-    
-    /* МАГИЯ ЦЕНТРИРОВАНИЯ: */
     display: flex;
     flex-direction: column;
-    align-items: center;     /* Центрируем чек по горизонтали */
-    justify-content: center; /* Центрируем чек по вертикали */
-    overflow-y: auto;        /* Разрешаем прокрутку, если экран маленький */
+    align-items: center;
+    justify-content: center;
+    overflow-y: auto;
 }
 
-/* 2. САМ ТЕКСТ ЧЕКА (Узкий столбик) */
-.receipt-body {
-    width: 100%;
-    max-width: 400px; /* Ограничиваем ширину, чтобы текст не разбегался */
-    padding: 20px;    /* Отступы внутри столбика */
-    box-sizing: border-box;
-    
-    /* Текст внутри выравниваем как обычно */
-    color: #000;
-    font-family: Arial, sans-serif;
-    
-    /* Если экран мобильный, чек займет всю ширину, если ПК — останется узким */
-}
-
-/* 3. КРЕСТИК (чтобы был в углу экрана) */
 .close {
     position: absolute;
     top: 20px;
@@ -162,17 +133,18 @@ body {
     font-size: 32px;
     cursor: pointer;
     color: #333;
-    z-index: 100; /* Чтобы точно был поверх всего */
+    z-index: 100;
 }
 
-/* Внутренности чека */
 .receipt-body {
-    padding: 40px 20px 30px 20px;
+    width: 100%;
+    max-width: 400px;
+    padding: 20px;
+    box-sizing: border-box;
     color: #000;
     font-family: Arial, sans-serif;
 }
 
-/* Желтый щит логотипа */
 .t-logo-wrap {
     display: flex;
     justify-content: center;
@@ -188,9 +160,7 @@ body {
     font-size: 28px;
     font-weight: 900;
     font-family: 'Arial Black', sans-serif;
-    /* Делаем форму щита */
     clip-path: polygon(0 0, 100% 0, 100% 80%, 50% 100%, 0 80%);
-    -webkit-clip-path: polygon(0 0, 100% 0, 100% 80%, 50% 100%, 0 80%);
 }
 
 .receipt-date {
@@ -235,7 +205,7 @@ body {
     text-align: right;
     flex: 1;
     font-weight: 500;
-    word-break: break-word; /* Чтобы длинные номера переносились */
+    word-break: break-word;
     margin-left: 10px;
 }
 
@@ -244,4 +214,96 @@ body {
     font-size: 11px;
     color: #999;
     line-height: 1.4;
+}
+
+
+/* --- СТИЛИ ДЛЯ РЕЖИМА СКАНИРОВАНИЯ (КАМЕРА) --- */
+
+.scanner-mode {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%;
+    height: 100%;
+    background: black;
+    z-index: 500;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center; /* Центрируем оверлей */
+}
+
+#webcam {
+    width: 100%;
+    height: 100%;
+    object-fit: cover; /* Заполняет весь экран */
+    position: absolute;
+    top: 0; left: 0;
+    z-index: 5;
+}
+
+#qrCanvas {
+    display: none;
+}
+
+/* Оверлей, который содержит круг и другие элементы (но сейчас их нет) */
+.scan-overlay {
+    position: absolute; 
+    bottom: 0; /* Прижимаем к низу */
+    left: 0;
+    width: 100%;
+    height: 180px; /* Высота зоны снизу, как на iPhone */
+    z-index: 10;
+    background: rgba(0,0,0,0.8); /* Темная полоса снизу */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Сам круг-кнопка (как на iPhone) */
+.scan-circle {
+    width: 70px; /* Размер круга */
+    height: 70px;
+    border: 3px solid white;
+    border-radius: 50%;
+    background: transparent; /* Прозрачный фон */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    position: relative;
+}
+
+.scan-circle:active {
+    background: rgba(255, 255, 255, 0.2); /* Эффект нажатия */
+}
+
+/* Полностью скрываем текст сообщения, если он остался */
+#scanMessage {
+    display: none;
+}
+
+/* Полностью скрываем все другие кнопки в режиме сканера */
+.scanner-btn, .go-to-payment-btn {
+    display: none !important;
+}
+
+/* Добавляем верхний бар камеры для аутентичности */
+.camera-top-bar {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 50px; /* Высота бара */
+    background: rgba(0,0,0,0.8);
+    z-index: 10;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 15px;
+    color: white;
+    font-size: 16px;
+}
+
+.camera-top-bar span {
+    opacity: 0.8;
 }
