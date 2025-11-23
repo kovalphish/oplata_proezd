@@ -10,29 +10,32 @@ function format(d) {
            pad(d.getMinutes());
 }
 
-const enterTime = format(new Date());
+// Элементы DOM
 const fixedTimeElement = document.getElementById("fixedTime");
-
 const modal = document.getElementById("modal");
 const payBtn = document.getElementById("payBtn");
 const closeBtn = document.getElementById("closeBtn");
 const mainPrice = document.querySelector(".price"); 
-
 const receiptDate = document.getElementById("receiptDate");
 const receiptSumBig = document.getElementById("receiptSumBig");
 const receiptSumSmall = document.getElementById("receiptSumSmall");
 
+
+// При нажатии "Оплатить"
 payBtn.onclick = () => {
+    // Получаем текущую цену
     const currentPrice = mainPrice.innerText;
     receiptSumBig.innerText = currentPrice;
     receiptSumSmall.innerText = currentPrice;
 
+    // Обновляем время чека
     const seconds = pad(new Date().getSeconds());
     receiptDate.textContent = fixedTimeElement.textContent + ":" + seconds;
 
     modal.style.display = "flex";
 };
 
+// Закрытие чека
 closeBtn.onclick = () => {
     modal.style.display = "none";
 };
@@ -47,8 +50,8 @@ modal.onclick = e => {
 const scannerView = document.getElementById('scannerView');
 const paymentView = document.getElementById('paymentView');
 const header = document.querySelector('.header');
-const showScannerBtn = document.getElementById('showScannerBtn'); // Кнопка "Назад к сканеру"
-const captureCircle = document.getElementById('captureCircle'); // Центральный круг-кнопка
+const showScannerBtn = document.getElementById('showScannerBtn');
+const captureCircle = document.getElementById('captureCircle'); 
 
 const video = document.getElementById('webcam');
 const canvasElement = document.getElementById('qrCanvas');
@@ -61,7 +64,6 @@ let animationFrameId = null;
 function startScanning() {
     if (!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia)) {
         console.error('Ошибка: Ваш браузер не поддерживает камеру.');
-        // Вместо scanMessage, можно вывести ошибку в консоль или в скрытый элемент
         return;
     }
     
@@ -75,12 +77,11 @@ function startScanning() {
             video.onloadedmetadata = () => {
                 canvasElement.height = video.videoHeight;
                 canvasElement.width = video.videoWidth;
-                startScanLoop(); // Запускаем цикл сканирования
+                startScanLoop(); 
             };
         })
         .catch(err => {
             console.error('Ошибка доступа к камере:', err);
-            // Можно показать заглушку или сообщение об ошибке, если камера недоступна
         });
 }
 
@@ -100,11 +101,13 @@ function stopScanning() {
 
 // ФУНКЦИЯ 3: Переключение в режим оплаты (по нажатию на центральный круг)
 captureCircle.onclick = () => {
-    stopScanning(); // Останавливаем камеру
+    stopScanning(); 
     scannerView.style.display = 'none'; 
     header.style.display = 'block'; 
     paymentView.style.display = 'flex'; 
-    fixedTimeElement.textContent = format(new Date()); // Обновляем время при переходе
+    
+    // Обновляем время при переходе на экран оплаты
+    fixedTimeElement.textContent = format(new Date()); 
 };
 
 
@@ -127,9 +130,6 @@ function startScanLoop() {
         if (code) {
             // QR-код СЧИТАН!
             console.log("QR Code detected:", code.data);
-            // Здесь вы можете добавить логику, если хотите использовать данные QR-кода.
-            // Например, заполнить поле с номером автобуса:
-            // document.querySelector(".vehicle").textContent = "QR: " + code.data;
         }
     }
     animationFrameId = requestAnimationFrame(startScanLoop);
@@ -142,7 +142,7 @@ window.onload = () => {
     header.style.display = 'none';
     paymentView.style.display = 'none';
     modal.style.display = 'none';
-    scannerView.style.display = 'flex'; // Показываем сканер по умолчанию
+    scannerView.style.display = 'block'; 
     
     startScanning(); 
 };

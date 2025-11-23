@@ -6,7 +6,7 @@ body {
     display: flex;
     flex-direction: column;
     align-items: center;
-    height: 100vh;
+    height: 100vh; /* Всегда 100% высоты экрана */
     color: #1B123F;
 }
 
@@ -96,7 +96,7 @@ body {
     background-color: #6a5acd;
 }
 
-/* --- СТИЛИ ДЛЯ ЧЕКА --- */
+/* --- СТИЛИ ДЛЯ ЧЕКА (Восстановлены) --- */
 .modal {
     display: none;
     position: fixed;
@@ -142,7 +142,7 @@ body {
     padding: 20px;
     box-sizing: border-box;
     color: #000;
-    font-family: Arial, sans-serif;
+    font-family: Arial, sans-serif; /* Оставлен Arial для простоты, если нужен другой шрифт, его нужно подключить */
 }
 
 .t-logo-wrap {
@@ -226,16 +226,15 @@ body {
     height: 100%;
     background: black;
     z-index: 500;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center; /* Центрируем оверлей */
+    /* Убеждаемся, что этот контейнер занимает весь экран */
+    display: block; 
 }
 
 #webcam {
     width: 100%;
     height: 100%;
-    object-fit: cover; /* Заполняет весь экран */
+    /* Это гарантирует, что видео заполнит весь контейнер без черных полос */
+    object-fit: cover; 
     position: absolute;
     top: 0; left: 0;
     z-index: 5;
@@ -245,27 +244,26 @@ body {
     display: none;
 }
 
-/* Оверлей, который содержит круг и другие элементы (но сейчас их нет) */
 .scan-overlay {
     position: absolute; 
-    bottom: 0; /* Прижимаем к низу */
+    bottom: 0; 
     left: 0;
     width: 100%;
-    height: 180px; /* Высота зоны снизу, как на iPhone */
+    height: 180px; 
     z-index: 10;
-    background: rgba(0,0,0,0.8); /* Темная полоса снизу */
+    background: rgba(0,0,0,0.8);
     display: flex;
     align-items: center;
     justify-content: center;
 }
 
-/* Сам круг-кнопка (как на iPhone) */
+/* Круг-кнопка для перехода к оплате */
 .scan-circle {
-    width: 70px; /* Размер круга */
+    width: 70px; 
     height: 70px;
     border: 3px solid white;
     border-radius: 50%;
-    background: transparent; /* Прозрачный фон */
+    background: transparent; 
     display: flex;
     align-items: center;
     justify-content: center;
@@ -274,27 +272,21 @@ body {
 }
 
 .scan-circle:active {
-    background: rgba(255, 255, 255, 0.2); /* Эффект нажатия */
+    background: rgba(255, 255, 255, 0.2); 
 }
 
-/* Полностью скрываем текст сообщения, если он остался */
-#scanMessage {
-    display: none;
-}
-
-/* Полностью скрываем все другие кнопки в режиме сканера */
-.scanner-btn, .go-to-payment-btn {
+/* Полностью скрываем лишние элементы */
+#scanMessage, .scanner-btn, .go-to-payment-btn {
     display: none !important;
 }
 
-/* Добавляем верхний бар камеры для аутентичности */
 .camera-top-bar {
     position: absolute;
     top: 0;
     left: 0;
     width: 100%;
-    height: 50px; /* Высота бара */
-    background: rgba(0,0,0,0.8);
+    height: 50px; 
+    background: rgba(0,0,0,0.4); /* Делаем полупрозрачным, чтобы было видно камеру */
     z-index: 10;
     display: flex;
     justify-content: space-between;
