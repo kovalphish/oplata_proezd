@@ -15,6 +15,10 @@
         <video id="webcam" autoplay playsinline></video>
         <canvas id="qrCanvas"></canvas>
 
+        <div id="cameraError" class="camera-error" style="display: none;">
+            Не удалось получить доступ к камере. Проверьте разрешения и используйте HTTPS.
+        </div>
+
         <div class="camera-top-bar">
             <span>&times;</span> 
             <span>HDR</span>
@@ -23,7 +27,15 @@
         </div>
         
         <div class="scan-overlay">
-            <div id="captureCircle" class="scan-circle"></div> 
+            <div id="captureCircle" class="scan-circle">
+                <div class="scan-circle-inner"></div>
+            </div>
+
+            <div class="camera-modes">
+                <span>Видео</span>
+                <span class="active-mode">Фото</span>
+                <span>Портрет</span>
+            </div>
         </div>
     </div>
 
@@ -34,14 +46,15 @@
     <main class="main" id="paymentView" style="display:none;">
         <img src="logo.svg" class="logo" alt="Логотип">
         
-        <div class="vehicle" contenteditable="true">Автобус №4</div>
-        <div class="price" contenteditable="true">35 ₽</div>
+        <div class="vehicle" contenteditable="true">Троллейбус №4</div>
+        <div class="price" contenteditable="true">38 ₽</div>
         
         <div id="fixedTime"></div>
         <div class="vehicle-id">Т/С: 167</div>
         
         <button id="payBtn" class="pay-btn">Оплатить</button>
         
+        <button id="showScannerBtn" class="pay-btn scanner-btn-switch">Назад к сканеру</button>
     </main>
 
     <div id="modal" class="modal">
@@ -57,7 +70,7 @@
 
                 <div class="receipt-title-row">
                     <div class="receipt-title">Итого</div>
-                    <div class="receipt-sum-big" id="receiptSumBig">35 ₽</div>
+                    <div class="receipt-sum-big" id="receiptSumBig">38 ₽</div>
                 </div>
 
                 <div class="receipt-row">
