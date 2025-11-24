@@ -22,8 +22,8 @@
         <div class="camera-top-bar">
             <span>&times;</span> 
             <span>HDR</span>
-            <span>⏱</span> 
-            <span>⚡️</span> 
+            <span>⏲</span> 
+            <span>🗲</span> 
         </div>
         
         <div class="scan-overlay">
@@ -46,15 +46,15 @@
     <main class="main" id="paymentView" style="display:none;">
         <img src="logo.svg" class="logo" alt="Логотип">
         
-        <div class="vehicle" contenteditable="true">Троллейбус №4</div>
-        <div class="price" contenteditable="true">38 ₽</div>
+        <div class="vehicle" contenteditable="true">Автобус №4</div>
+        <div class="price" contenteditable="true">35 ₽</div>
         
         <div id="fixedTime"></div>
         <div class="vehicle-id">Т/С: 167</div>
         
         <button id="payBtn" class="pay-btn">Оплатить</button>
         
-        <button id="showScannerBtn" class="pay-btn scanner-btn-switch">Назад к сканеру</button>
+        
     </main>
 
     <div id="modal" class="modal">
@@ -63,7 +63,7 @@
             
             <div class="receipt-body">
                 <div class="t-logo-wrap">
-                    <div class="t-logo">T</div>
+                    <img src="logot.png" alt="Логотип Т" style="width: 35px; height: 35px;">
                 </div>
 
                 <div class="receipt-date" id="receiptDate"></div>
@@ -106,10 +106,14 @@
                     <span class="row-value">30701</span>
                 </div>
 
-                <div class="receipt-footer">
-                    АО «ТБАНК»<br>
-                    БИК 044525974 ИНН 7710140679<br>
-                    По вопросам зачисления обращайтесь к получателю
+                <div class="signature-block">
+                    <img src="pech.png" alt="Подпись и печать" style="width: 70% ;margin-left: 112px">
+                </div>
+
+                <div class="final-footer">
+                    Квитанция № 1-111-184-502-464<br>
+                    По вопросам зачисления обращайтесь к получателю<br>
+                    Служба поддержки <a href="mailto:fb@tbank.ru">fb@tbank.ru</a>
                 </div>
             </div>
         </div>
