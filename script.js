@@ -63,8 +63,12 @@ function startScanning() {
         return;
     }
     
-    // ИЗМЕНЕНИЕ: Универсальный запрос видео
-    navigator.mediaDevices.getUserMedia({ video: true }) 
+    // ИСПРАВЛЕНИЕ: Запрашиваем ЗАДНЮЮ камеру (facingMode: "environment")
+    navigator.mediaDevices.getUserMedia({ 
+        video: {
+            facingMode: "environment" 
+        } 
+    }) 
         .then(s => {
             stream = s;
             video.srcObject = s;
