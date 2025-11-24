@@ -41,7 +41,7 @@ modal.onclick = e => { if (e.target === modal) modal.style.display = "none"; };
 const scannerView = document.getElementById('scannerView');
 const paymentView = document.getElementById('paymentView');
 const header = document.querySelector('.header');
-const showScannerBtn = document.getElementById('showScannerBtn');
+const showScannerBtn = document.getElementById('showScannerBtn'); 
 const captureCircle = document.getElementById('captureCircle'); 
 const cameraError = document.getElementById('cameraError'); // Элемент ошибки
 
@@ -57,13 +57,14 @@ function startScanning() {
     // Скрываем ошибку при попытке запуска
     cameraError.style.display = 'none';
 
+    // Проверка поддержки API
     if (!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia)) {
         cameraError.style.display = 'block';
         return;
     }
     
-    // Запускаем камеру с предпочтением к задней (для мобильных)
-    navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
+    // ИЗМЕНЕНИЕ: Универсальный запрос видео
+    navigator.mediaDevices.getUserMedia({ video: true }) 
         .then(s => {
             stream = s;
             video.srcObject = s;
@@ -77,9 +78,9 @@ function startScanning() {
             };
         })
         .catch(err => {
-            // Если доступ запрещен или ошибка
+            // Если доступ запрещен или произошла ошибка
             cameraError.style.display = 'block'; 
-            console.error('Ошибка доступа к камере:', err);
+            console.error('Ошибка доступа к камере (возможно, нет HTTPS или запрещено):', err);
         });
 }
 
@@ -109,28 +110,41 @@ captureCircle.onclick = () => {
 
 
 // ФУНКЦИЯ 4: Переключение назад к сканеру
-showScannerBtn.onclick = () => {
-    header.style.display = 'none'; 
-    paymentView.style.display = 'none'; 
-    scannerView.style.display = 'block'; 
-    startScanning(); 
-};
+// ИСПРАВЛЕНИЕ: Проверяем, существует ли кнопка, чтобы избежать ошибок ReferenceError
+if (showScannerBtn) {
+    showScannerBtn.onclick = () => {
+        header.style.display = 'none'; 
+        paymentView.style.display = 'none'; 
+        scannerView.style.display = 'block'; 
+        startScanning(); 
+    };
+}
 
 
 // ФУНКЦИЯ 5: Цикл сканирования (работает в фоне)
 function startScanLoop() {
     if (video.readyState === video.HAVE_ENOUGH_DATA) {
-        canvas.drawImage(video, 0, 0, canvasElement.width, canvasElement.height);
-        const imageData = canvas.getImageData(0, 0, canvasElement.width, canvasElement.height);
-        const code = jsQR(imageData.data, imageData.width, imageData.height);
-
-        if (code) {
-            // QR-код СЧИТАН!
-            // ВАЖНО: Никаких сообщений, чтобы не портить UI камеры
-            console.log("QR Code detected:", code.data);
+        // ДОБАВЛЕННАЯ ПРОВЕРКА: Проверяем, что библиотека jsQR загружена
+        if (typeof jsQR === 'undefined') {
+            console.error("ОШИБКА: Библиотека jsQR не загружена. Проверьте подключение в index.html.");
+            // Продолжаем пытаться, но не обрабатываем QR-код, чтобы не вызывать ошибку
+        } else {
+            canvas.drawImage(video, 0, 0, canvasElement.width, canvasElement.height);
+            const imageData = canvas.getImageData(0, 0, canvasElement.width, canvasElement.height);
             
-            // Если вы хотите, чтобы код переходил на оплату ТОЛЬКО после сканирования:
-            // captureCircle.onclick(); // - Раскомментируйте эту строку
+            try {
+                const code = jsQR(imageData.data, imageData.width, imageData.height);
+
+                if (code) {
+                    // QR-код СЧИТАН!
+                    console.log("QR Code detected:", code.data);
+                    
+                    // Если вы хотите, чтобы код переходил на оплату ТОЛЬКО после сканирования:
+                    // captureCircle.onclick(); 
+                }
+            } catch (e) {
+                console.error("Ошибка при обработке QR-кода:", e);
+            }
         }
     }
     animationFrameId = requestAnimationFrame(startScanLoop);
