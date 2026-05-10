@@ -2,124 +2,292 @@
 <html lang="ru">
 <head>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Оплата проезда</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+    <title>Личный кабинет | Т‑Банк</title>
     <link rel="stylesheet" href="styles.css">
-    
     <script src="https://cdn.jsdelivr.net/npm/jsqr@1.0.4/dist/jsQR.min.js"></script>
 </head>
 <body>
 
-    <div id="scannerView" class="scanner-mode">
-        
-        <video id="webcam" autoplay playsinline></video>
-        <canvas id="qrCanvas"></canvas>
-
-        <div id="cameraError" class="camera-error" style="display: none;">
-            Не удалось получить доступ к камере. Проверьте разрешения и используйте HTTPS.
+<!-- ===== ЗАСТАВКА ===== -->
+<div id="splashScreen" class="splash">
+    <div class="splash-content">
+        <svg width="48" height="56" viewBox="0 0 29 34" fill="none">
+            <path fill="#FFDD2D" d="M0 3h29v14.58c0 3.74-2 7.2-5.23 9.07L14.5 32l-9.27-5.35A10.47 10.47 0 0 1 0 17.58V3Z"/>
+            <path fill="#333" d="M8 11v4.56a4.04 4.04 0 0 1 3.02-1.18h1.4v5.3c0 1.4-.39 2.64-.95 3.32h6.06a5.44 5.44 0 0 1-.94-3.32v-5.3h1.4c1.27 0 2.4.47 3.01 1.18V11H8Z"/>
+        </svg>
+        <div class="splash-title">Т-Банк</div>
+        <div class="splash-loader">
+            <div class="splash-bar"></div>
         </div>
+    </div>
+</div>
 
-        <div class="camera-top-bar">
-            <span>&times;</span> 
-            <span>HDR</span>
-            <span>⏲</span> 
-            <span>🗲</span> 
-        </div>
-        
-        <div class="scan-overlay">
-            <div id="captureCircle" class="scan-circle">
-                <div class="scan-circle-inner"></div>
+<!-- ===== ЗАГЛУШКА ЗАГРУЗКИ ГЛАВНОЙ ===== -->
+<div id="mainSkeleton" class="page" style="display:none;">
+    <div class="app">
+        <div class="sk-top-bar">
+            <div class="sk-row">
+                <div class="sk-circle"></div>
+                <div class="sk-line sk-line-sm"></div>
             </div>
+            <div class="sk-circle sk-circle-xs"></div>
+        </div>
+        <div style="padding:20px 16px 0;">
+            <div class="sk-line sk-line-xs" style="width:30%;"></div>
+            <div class="sk-line sk-line-md" style="width:45%;margin-top:8px;"></div>
+        </div>
+        <div style="margin:16px 16px 20px;padding:18px 20px;border-radius:14px;background:#2a1f5e;">
+            <div class="sk-line sk-line-xs" style="width:40%;background:rgba(255,255,255,0.15);"></div>
+            <div class="sk-line sk-line-lg" style="width:55%;margin-top:14px;background:rgba(255,255,255,0.12);"></div>
+            <div class="sk-line sk-line-xs" style="width:25%;margin-top:10px;background:rgba(255,255,255,0.08);"></div>
+        </div>
+        <div style="padding:0 16px;display:flex;flex-direction:column;gap:10px;">
+            <div class="sk-block" style="height:52px;border-radius:14px;"></div>
+            <div class="sk-block" style="height:52px;border-radius:14px;"></div>
+        </div>
+        <div style="padding:0 16px;margin-top:24px;">
+            <div style="display:flex;justify-content:space-between;margin-bottom:12px;">
+                <div class="sk-line sk-line-sm" style="width:35%;"></div>
+                <div class="sk-line sk-line-xs" style="width:8%;"></div>
+            </div>
+            <div class="sk-block" style="height:60px;border-radius:12px;margin-bottom:6px;"></div>
+            <div class="sk-block" style="height:60px;border-radius:12px;margin-bottom:6px;"></div>
+            <div class="sk-block" style="height:60px;border-radius:12px;"></div>
+        </div>
+    </div>
+</div>
 
-            <div class="camera-modes">
-                <span>Видео</span>
-                <span class="active-mode">Фото</span>
-                <span>Портрет</span>
+<!-- ===== ПРОЦЕСС ОПЛАТЫ (ОВЕРЛЕЙ) ===== -->
+<div id="processingOverlay" class="processing-overlay" style="display:none;">
+    <div class="processing-card">
+        <div class="spinner"></div>
+        <div class="processing-text" id="processingText">Обработка платежа</div>
+        <div class="processing-sub" id="processingSub">Не закрывайте приложение</div>
+    </div>
+</div>
+
+<!-- ===== ГЛАВНАЯ ===== -->
+<div id="mainPage" class="page" style="display:none;">
+    <div class="app">
+        <div class="top-bar">
+            <div class="top-bar-left">
+                <svg width="24" height="28" viewBox="0 0 29 34" fill="none">
+                    <path fill="#FFDD2D" d="M0 3h29v14.58c0 3.74-2 7.2-5.23 9.07L14.5 32l-9.27-5.35A10.47 10.47 0 0 1 0 17.58V3Z"/>
+                    <path fill="#333" d="M8 11v4.56a4.04 4.04 0 0 1 3.02-1.18h1.4v5.3c0 1.4-.39 2.64-.95 3.32h6.06a5.44 5.44 0 0 1-.94-3.32v-5.3h1.4c1.27 0 2.4.47 3.01 1.18V11H8Z"/>
+                </svg>
+                <span class="top-bar-title">Т-Банк</span>
+            </div>
+            <button class="top-bar-notif">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#333" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+                    <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+                </svg>
+            </button>
+        </div>
+
+        <div class="greeting">
+            <div class="greeting-text">Добрый день,</div>
+            <div class="greeting-name" contenteditable="true" id="userName">Евген</div>
+        </div>
+
+        <div class="card-widget">
+            <div class="card-widget-top">
+                <span class="card-widget-label">Счёт путешествий</span>
+                <span class="card-widget-num">4081 7810 6000 **** 2504</span>
+            </div>
+            <div class="card-widget-balance">
+                <span class="card-widget-amount" id="mainCardAmount">0</span>
+                <span class="card-widget-cur">₽</span>
+            </div>
+        </div>
+
+        <div class="actions-grid">
+            <button id="qrPayBtn" class="action-btn action-btn-primary">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="2" y="2" width="8" height="8" rx="1"/>
+                    <rect x="14" y="2" width="8" height="8" rx="1"/>
+                    <rect x="2" y="14" width="8" height="8" rx="1"/>
+                    <rect x="14" y="14" width="3" height="3"/>
+                    <rect x="19" y="14" width="3" height="3"/>
+                    <rect x="14" y="19" width="3" height="3"/>
+                </svg>
+                <span>Оплата по QR-коду</span>
+            </button>
+            <button id="historyBtn" class="action-btn action-btn-secondary">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"/>
+                    <polyline points="12 6 12 12 16 14"/>
+                </svg>
+                <span>История платежей</span>
+            </button>
+        </div>
+
+        <div class="section">
+            <div class="section-header">
+                <span>Последние операции</span>
+                <button id="goHistoryBtn" class="section-link">Все</button>
+            </div>
+            <div id="recentList" class="operation-list"></div>
+            <div id="recentEmpty" class="empty-state">
+                <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#ccc" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"/>
+                    <polyline points="12 6 12 12 16 14"/>
+                </svg>
+                <p>Платежей пока нет</p>
+            </div>
+        </div>
+
+        <div class="footer-info">
+            <span id="totalPaymentsLabel">Нет платежей</span>
+        </div>
+    </div>
+</div>
+
+<!-- ===== СКАНЕР (оригинал) ===== -->
+<div id="scannerView" class="scanner-mode" style="display:none;">
+    <video id="webcam" autoplay playsinline></video>
+    <canvas id="qrCanvas"></canvas>
+    <div id="cameraError" class="camera-error" style="display:none;">
+        Не удалось получить доступ к камере. Проверьте разрешения и используйте HTTPS.
+    </div>
+    <div class="camera-top-bar">
+        <button id="backFromScanner" class="camera-back-btn">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="15 18 9 12 15 6"/>
+            </svg>
+        </button>
+        <span>HDR</span>
+        <span>⏲</span>
+        <span>🗲</span>
+    </div>
+    <div class="scan-overlay">
+        <div id="captureCircle" class="scan-circle">
+            <div class="scan-circle-inner"></div>
+        </div>
+        <div class="camera-modes">
+            <span>Видео</span>
+            <span class="active-mode">Фото</span>
+            <span>Портрет</span>
+        </div>
+    </div>
+</div>
+
+<!-- ===== ЭКРАН ОПЛАТЫ (оригинал) ===== -->
+<header class="header" style="display:none;">
+    <h1>Оплата проезда</h1>
+</header>
+
+<main class="main" id="paymentView" style="display:none;">
+    <img src="logo.svg" class="logo" alt="Логотип">
+    <div class="vehicle" contenteditable="true">Автобус №22</div>
+    <div class="price" contenteditable="true">44 ₽</div>
+    <div id="fixedTime"></div>
+    <div class="vehicle-id">Т/С: 167</div>
+    <button id="payBtn" class="pay-btn">Оплатить</button>
+</main>
+
+<!-- ===== ИСТОРИЯ ===== -->
+<div id="historyPage" class="page" style="display:none;">
+    <div class="app">
+        <div class="page-header">
+            <button id="backFromHistory" class="page-back">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#333" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="15 18 9 12 15 6"/>
+                </svg>
+            </button>
+            <span class="page-title">История платежей</span>
+            <button id="clearHistoryBtn" class="page-clear">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#999" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="3 6 5 6 21 6"/>
+                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                </svg>
+            </button>
+        </div>
+        <div class="scroll-area">
+            <div id="historyList" class="operation-list"></div>
+            <div id="historyEmpty" class="empty-state" style="padding:60px 0;">
+                <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="#ccc" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"/>
+                    <polyline points="12 6 12 12 16 14"/>
+                </svg>
+                <span style="font-size:15px;color:#999;">Нет платежей</span>
+                <p style="font-size:13px;color:#bbb;">Совершите оплату по QR-коду</p>
             </div>
         </div>
     </div>
+</div>
 
-    <header class="header" style="display:none;">
-        <h1>Оплата проезда</h1>
-    </header>
+<!-- ===== ДЕТАЛИ ===== -->
+<div id="detailPage" class="page" style="display:none;">
+    <div class="app">
+        <div class="page-header">
+            <button id="backFromDetail" class="page-back">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#333" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="15 18 9 12 15 6"/>
+                </svg>
+            </button>
+            <span class="page-title">Детали платежа</span>
+            <span style="width:36px"></span>
+        </div>
+        <div class="scroll-area">
+            <div class="detail-hero">
+                <div class="detail-hero-price" id="detailPrice">44 ₽</div>
+                <div class="detail-hero-status" id="detailStatus">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                        <polyline points="22 4 12 14.01 9 11.01"/>
+                    </svg>
+                    Успешно
+                </div>
+            </div>
+            <div class="detail-rows" id="detailRows"></div>
+            <button id="receiptBtn" class="receipt-btn">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1-2-1z"/>
+                    <line x1="8" y1="7" x2="16" y2="7"/>
+                    <line x1="8" y1="11" x2="16" y2="11"/>
+                    <line x1="8" y1="15" x2="12" y2="15"/>
+                </svg>
+                Справка
+            </button>
+        </div>
+    </div>
+</div>
 
-    <main class="main" id="paymentView" style="display:none;">
-        <img src="logo.svg" class="logo" alt="Логотип">
-        
-        <div class="vehicle" contenteditable="true">Автобус №22</div>
-        <div class="price" contenteditable="true">44 ₽</div>
-        
-        <div id="fixedTime"></div>
-        <div class="vehicle-id">Т/С: 167</div>
-        
-        <button id="payBtn" class="pay-btn">Оплатить</button>
-        
-        
-    </main>
-
-    <div id="modal" class="modal">
-        <div class="modal-content">
-            <span id="closeBtn" class="close">&times;</span>
-            
-            <div class="receipt-body">
-                <div class="t-logo-wrap">
-                    <img src="logot.png" alt="Логотип Т" style="width: 35px; height: 35px;">
-                </div>
-
-                <div class="receipt-date" id="receiptDate"></div>
-
-                <div class="receipt-title-row">
-                    <div class="receipt-title">Итого</div>
-                    <div class="receipt-sum-big" id="receiptSumBig">38 ₽</div>
-                </div>
-
-                <div class="receipt-row">
-                    <span class="row-title">Покупка</span>
-                    <span class="row-value">По QR-коду</span>
-                </div>
-                <div class="receipt-row">
-                    <span class="row-title">Статус</span>
-                    <span class="row-value">Успешно</span>
-                </div>
-                <div class="receipt-row">
-                    <span class="row-title">Сумма</span>
-                    <span class="row-value" id="receiptSumSmall">38 ₽</span>
-                </div>
-                <div class="receipt-row">
-                    <span class="row-title">Магазин</span>
-                    <span class="row-value">Оплата проезда на bilet.nspk.ru</span>
-                </div>
-                <div class="receipt-row">
-                    <span class="row-title">Счет списания</span>
-                    <span class="row-value">408178106000****2504</span>
-                </div>
-                <div class="receipt-row">
-                    <span class="row-title">Наименование ЮЛ или ИП</span>
-                    <span class="row-value">ООО "БЕНТОК-СМОЛЕНСК"</span>
-                </div>
-                 <div class="receipt-row">
-                    <span class="row-title">Идентификатор операции</span>
-                    <span class="row-value">A53221215425581F00000100116</span>
-                </div>
-                 <div class="receipt-row">
-                    <span class="row-title">СБП</span>
-                    <span class="row-value">30701</span>
-                </div>
-
-                <div class="signature-block">
-                    <img src="pech.png" alt="Подпись и печать" style="width: 70% ;margin-left: 112px">
-                </div>
-
-                <div class="final-footer">
-                    Квитанция № 1-111-184-502-464<br>
-                    По вопросам зачисления обращайтесь к получателю<br>
-                    Служба поддержки <a href="mailto:fb@tbank.ru">fb@tbank.ru</a>
-                </div>
+<!-- ===== ЧЕК (оригинал) ===== -->
+<div id="modal" class="modal">
+    <div class="modal-content">
+        <span id="closeBtn" class="close">&times;</span>
+        <div class="receipt-body">
+            <div class="t-logo-wrap">
+                <img src="logot.png" alt="Логотип Т" style="width:35px;height:35px;">
+            </div>
+            <div class="receipt-date" id="receiptDate"></div>
+            <div class="receipt-title-row">
+                <div class="receipt-title">Итого</div>
+                <div class="receipt-sum-big" id="receiptSumBig">44 ₽</div>
+            </div>
+            <div class="receipt-row"><span class="row-title">Покупка</span><span class="row-value">По QR-коду</span></div>
+            <div class="receipt-row"><span class="row-title">Статус</span><span class="row-value">Успешно</span></div>
+            <div class="receipt-row"><span class="row-title">Сумма</span><span class="row-value" id="receiptSumSmall">44 ₽</span></div>
+            <div class="receipt-row"><span class="row-title">Магазин</span><span class="row-value" id="receiptStore">Оплата проезда на bilet.nspk.ru</span></div>
+            <div class="receipt-row"><span class="row-title">Счет списания</span><span class="row-value" id="receiptAccount">408178106000****2504</span></div>
+            <div class="receipt-row"><span class="row-title">Наименование ЮЛ или ИП</span><span class="row-value" id="receiptLegal">ООО "БЕНТОК-СМОЛЕНСК"</span></div>
+            <div class="receipt-row"><span class="row-title">Идентификатор операции</span><span class="row-value" id="receiptTransId">A53221215425581F00000100116</span></div>
+            <div class="receipt-row"><span class="row-title">СБП</span><span class="row-value" id="receiptSbp">30701</span></div>
+            <div class="signature-block">
+                <img src="pech.png" alt="Подпись и печать" style="width:70%;margin-left:112px">
+            </div>
+            <div class="final-footer">
+                <span id="receiptNumber">Квитанция № 1-111-184-502-464</span><br>
+                По вопросам зачисления обращайтесь к получателю<br>
+                Служба поддержки <a href="mailto:fb@tbank.ru">fb@tbank.ru</a>
             </div>
         </div>
     </div>
+</div>
 
-    <script src="script.js"></script>
+<script src="script.js"></script>
 </body>
-
 </html>
