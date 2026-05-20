@@ -40,7 +40,7 @@ const receiptNumber = document.getElementById("receiptNumber");
 
 const scannerView = document.getElementById('scannerView');
 const paymentView = document.getElementById('paymentView');
-const headerEl = document.querySelector('.header');
+const headerEl = document.getElementById('paymentHeader');
 const captureCircle = document.getElementById('captureCircle');
 const cameraError = document.getElementById('cameraError');
 const video = document.getElementById('webcam');
@@ -54,11 +54,8 @@ const processingText = document.getElementById('processingText');
 const processingSub = document.getElementById('processingSub');
 
 const mainPage = document.getElementById('mainPage');
-const qrPayBtn = document.getElementById('qrPayBtn');
-const historyBtn = document.getElementById('historyBtn');
-const goHistoryBtn = document.getElementById('goHistoryBtn');
-const totalPaymentsLabel = document.getElementById('totalPaymentsLabel');
-const mainCardAmount = document.getElementById('mainCardAmount');
+const scanQrBtn = document.getElementById('scanQrBtn');
+const paymentsNav = document.getElementById('paymentsNav');
 const userName = document.getElementById('userName');
 
 const backFromScanner = document.getElementById('backFromScanner');
@@ -72,12 +69,12 @@ const clearHistoryBtn = document.getElementById('clearHistoryBtn');
 
 const detailPage = document.getElementById('detailPage');
 const detailPrice = document.getElementById('detailPrice');
-const detailStatus = document.getElementById('detailStatus');
-const detailRows = document.getElementById('detailRows');
+const detailDatetime = document.getElementById('detailDatetime');
+const detailTitle = document.getElementById('detailTitle');
+const detailCategory = document.getElementById('detailCategory');
+const detailCardName = document.getElementById('detailCardName');
+const detailBalance = document.getElementById('detailBalance');
 const receiptBtn = document.getElementById('receiptBtn');
-
-const recentList = document.getElementById('recentList');
-const recentEmpty = document.getElementById('recentEmpty');
 
 // ====== СОСТОЯНИЕ ======
 
@@ -240,35 +237,13 @@ async function showDetail(id) {
     const p = payments.find(pay => pay.id === id);
     if (!p) { isNavigating = false; return; }
 
-    detailPrice.textContent = p.price;
-    detailStatus.innerHTML = `
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
-            <polyline points="22 4 12 14.01 9 11.01"/>
-        </svg>
-        Успешно
-    `;
-    detailRows.innerHTML = `
-        <div class="detail-row"><span class="detail-label">Дата</span><span class="detail-value">${p.date}</span></div>
-        <div class="detail-row"><span class="detail-label">Время</span><span class="detail-value">${p.time}</span></div>
-        <div class="detail-row"><span class="detail-label">Транспорт</span><span class="detail-value">${p.vehicle}</span></div>
-        <div class="detail-row"><span class="detail-label">Т/С</span><span class="detail-value">${p.vehicleId}</span></div>
-        <div class="detail-row"><span class="detail-label">Сумма</span><span class="detail-value" style="color:#333;font-weight:600;">${p.price}</span></div>
-        <div class="detail-row"><span class="detail-label">Статус</span><span class="detail-value" style="color:#4CAF50;">Успешно</span></div>
-        <div class="detail-row"><span class="detail-label">Магазин</span><span class="detail-value">${p.store}</span></div>
-        <div class="detail-row"><span class="detail-label">Счет списания</span><span class="detail-value">${p.account}</span></div>
-        <div class="detail-row"><span class="detail-label">ЮЛ / ИП</span><span class="detail-value">${p.legalName}</span></div>
-        <div class="detail-row"><span class="detail-label">ID операции</span><span class="detail-value">${p.transactionId}</span></div>
-        <div class="detail-row"><span class="detail-label">СБП</span><span class="detail-value">${p.sbp}</span></div>
-        <div class="detail-row"><span class="detail-label">Квитанция</span><span class="detail-value">${p.receiptNumber}</span></div>
-    `;
+    detailDatetime.textContent = `${p.date} • ${p.time}`;
+    detailTitle.textContent = p.vehicle;
+    detailPrice.textContent = `−${p.price}`;
 
-    hideAll();
-    mainSkeleton.style.display = 'block';
-    await delay(350);
-
-    mainSkeleton.style.display = 'none';
+    historyPage.style.overflow = 'hidden';
     detailPage.style.display = 'block';
+    await delay(50);
     isNavigating = false;
 }
 
@@ -300,7 +275,7 @@ function savePayment() {
         date: formatDate(now),
         time: formatTime(now),
         fullDate: format(now) + ":" + pad(now.getSeconds()),
-        vehicle: document.querySelector('.vehicle').textContent.trim(),
+        vehicle: 'МУП "Служба организации движения"',
         price: document.querySelector('.price').textContent.trim(),
         vehicleId: document.querySelector('.vehicle-id').textContent.trim(),
         status: "Успешно",
@@ -337,97 +312,45 @@ function saveToStorage() {
 function loadFromStorage() {
     try {
         const data = localStorage.getItem('tpay_payments');
-        if (data) payments = JSON.parse(data);
+        if (data) {
+            payments = JSON.parse(data);
+            payments.forEach(p => {
+                if (p.vehicle === 'Автобус №22') p.vehicle = 'МУП "Служба организации движения"';
+            });
+        }
     } catch(e) { payments = []; }
 }
 
 // ====== UI UPDATE ======
 
-function calcTotal() {
-    return payments.reduce((sum, p) => {
-        const num = parseFloat(p.price.replace(/[^\d,]/g, '').replace(',', '.'));
-        return sum + (isNaN(num) ? 0 : num);
-    }, 0);
-}
-
-function pluralize(n, forms) {
-    n = Math.abs(n) % 100;
-    const n1 = n % 10;
-    if (n > 10 && n < 20) return forms[2];
-    if (n1 > 1 && n1 < 5) return forms[1];
-    if (n1 === 1) return forms[0];
-    return forms[2];
-}
-
 function updateMain() {
-    const count = payments.length;
-    totalPaymentsLabel.textContent = count === 0 ? 'Нет платежей' : (count + ' ' + pluralize(count, ['платёж', 'платежа', 'платежей']));
-    mainCardAmount.textContent = calcTotal();
-    renderRecent();
-}
-
-function renderRecent() {
-    if (payments.length === 0) {
-        recentList.innerHTML = '';
-        recentEmpty.style.display = 'flex';
-        return;
-    }
-    recentEmpty.style.display = 'none';
-    const latest = payments.slice(0, 5);
-    recentList.innerHTML = latest.map(p => `
-        <div class="operation-item" data-id="${p.id}">
-            <div class="op-icon">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                    <rect x="3" y="11" width="18" height="11" rx="2"/>
-                    <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-                </svg>
-            </div>
-            <div class="op-info">
-                <div class="op-title">${p.vehicle}</div>
-                <div class="op-date">${p.date}</div>
-            </div>
-            <div class="op-amount">
-                ${p.price}
-                <span class="op-status">Успешно</span>
-            </div>
-        </div>
-    `).join('');
-    recentList.querySelectorAll('.operation-item').forEach(el => {
-        el.addEventListener('click', () => showDetail(el.dataset.id));
-    });
 }
 
 function renderHistory() {
     if (payments.length === 0) {
         historyList.innerHTML = '';
         historyEmpty.style.display = 'flex';
+        document.getElementById('historyDateHeader').style.display = 'none';
         return;
     }
+    document.getElementById('historyDateHeader').style.display = 'flex';
     historyEmpty.style.display = 'none';
     historyList.innerHTML = payments.map(p => `
-        <div class="history-item" data-id="${p.id}">
-            <div class="hist-icon">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                    <rect x="3" y="11" width="18" height="11" rx="2"/>
-                    <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-                </svg>
+        <div class="tx-item" data-id="${p.id}">
+            <div class="tx-icon-wrap green">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="white"><rect x="4" y="5" width="16" height="14" rx="2"/><rect x="6" y="8" width="4" height="3" rx="1"/><rect x="12" y="8" width="4" height="3" rx="1"/><circle cx="8" cy="17" r="1.5" fill="#333"/><circle cx="16" cy="17" r="1.5" fill="#333"/></svg>
             </div>
-            <div class="hist-info">
-                <div class="hist-title">${p.vehicle}</div>
-                <div class="hist-sub">${p.date} ${p.time}</div>
+            <div class="tx-details">
+                <div class="tx-name">${p.vehicle}</div>
+                <div class="tx-category">Местный транспорт</div>
             </div>
-            <div class="hist-right">
-                <div class="hist-price">${p.price}</div>
-                <div class="hist-status">
-                    <svg width="8" height="8" viewBox="0 0 24 24" fill="currentColor" stroke="none">
-                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
-                    </svg>
-                    Успешно
-                </div>
+            <div class="tx-amounts">
+                <div class="tx-value">−${p.price}</div>
+                <div class="tx-account">Платинум</div>
             </div>
         </div>
     `).join('');
-    historyList.querySelectorAll('.history-item').forEach(el => {
+    historyList.querySelectorAll('.tx-item').forEach(el => {
         el.addEventListener('click', () => showDetail(el.dataset.id));
     });
 }
@@ -463,22 +386,28 @@ modal.onclick = e => { if (e.target === modal) modal.style.display = 'none'; };
 
 captureCircle.onclick = goToPayment;
 
-qrPayBtn.onclick = showScanner;
-historyBtn.onclick = showHistory;
-goHistoryBtn.onclick = showHistory;
+scanQrBtn.onclick = showScanner;
+paymentsNav.onclick = showHistory;
+document.getElementById('allOperationsWidget').onclick = showHistory;
 
 backFromScanner.onclick = showMain;
 backFromHistory.onclick = showMain;
-backFromDetail.onclick = showHistory;
+function closeDetail() {
+    detailPage.style.display = 'none';
+    historyPage.style.overflow = '';
+}
 
-clearHistoryBtn.onclick = clearHistory;
+backFromDetail.onclick = closeDetail;
+detailPage.onclick = (e) => { if (e.target === detailPage) closeDetail(); };
+document.getElementById('detailApp').onclick = (e) => e.stopPropagation();
 
-receiptBtn.onclick = () => {
+receiptBtn.addEventListener('click', (e) => {
+    e.preventDefault();
     const p = payments.find(pay => pay.id === currentPaymentId);
     if (!p) return;
     fillReceipt(p);
     modal.style.display = 'flex';
-};
+});
 
 // ====== ИНИЦИАЛИЗАЦИЯ ======
 

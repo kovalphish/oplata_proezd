@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Банковское приложение</title>
+    <style>
+        :root {
+            --bg-color: #f7f8f9;
+            --card-bg: #ffffff;
+            --text-main: #1d1d1d;
+            --text-secondary: #8c8f94;
+            --accent-blue: #3b7cf6;
+            --accent-purple: #8a2be2;
+            --red-badge: #e62e2e;
+            --gray-icon: #a6abb4;
+            --app-width: 400px;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        body {
+            background-color: #e0e0e0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .app-container {
+            width: 100%;
+            max-width: var(--app-width);
+            background-color: var(--bg-color);
+            height: 100vh;
+            max-height: 850px;
+            overflow-y: auto;
+            position: relative;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Header */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 20px 15px;
+        }
+
+        .user-profile {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .avatar {
+            width: 42px;
+            height: 42px;
+            background-color: #cdd1d7;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            font-weight: bold;
+            font-size: 18px;
+        }
+
+        .user-name {
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--text-main);
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .gift-btn {
+            width: 42px;
+            height: 42px;
+            background-color: var(--accent-purple);
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            border: none;
+            cursor: pointer;
+        }
+
+        /* Search */
+        .search-bar {
+            margin: 0 20px 20px;
+            background-color: #eceff1;
+            border-radius: 16px;
+            padding: 12px 16px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .search-bar input {
+            border: none;
+            background: none;
+            outline: none;
+            font-size: 16px;
+            width: 100%;
+            color: var(--text-main);
+        }
+
+        .search-bar input::placeholder {
+            color: #9ea4ab;
+        }
+
+        /* Widgets Area */
+        .widgets {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            padding: 0 20px 24px;
+        }
+
+        .widget-card {
+            background-color: var(--card-bg);
+            border-radius: 20px;
+            padding: 16px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.03);
+            position: relative;
+        }
+
+        .widget-title {
+            font-size: 16px;
+            font-weight: 700;
+            color: var(--text-main);
+            margin-bottom: 6px;
+            line-height: 1.2;
+        }
+
+        .widget-subtitle {
+            font-size: 13px;
+            color: var(--text-secondary);
+            margin-bottom: 2px;
+        }
+
+        .widget-amount {
+            font-size: 15px;
+            color: var(--text-main);
+            margin-bottom: 12px;
+        }
+
+        /* Progress Bar */
+        .progress-bar-container {
+            display: flex;
+            height: 8px;
+            border-radius: 4px;
+            overflow: hidden;
+            width: 100%;
+        }
+        
+        .pb-segment { height: 100%; }
+
+        /* Cashback Icons */
+        .cashback-icons {
+            display: flex;
+            margin-top: 15px;
+        }
+
+        .cashback-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            margin-right: -8px;
+            border: 2px solid white;
+            background-color: #f0f0f0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 10px;
+            font-weight: bold;
+            color: white;
+        }
+        
+        .badge {
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            background-color: var(--red-badge);
+            color: white;
+            font-size: 12px;
+            font-weight: 600;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        /* Quick Actions */
+        .quick-actions {
+            display: flex;
+            justify-content: space-between;
+            padding: 0 20px 24px;
+        }
+
+        .action-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 76px;
+            text-align: center;
+            gap: 8px;
+        }
+
+        .action-icon {
+            width: 56px;
+            height: 56px;
+            background-color: #eef1f6;
+            border-radius: 18px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .action-item span {
+            font-size: 11px;
+            line-height: 1.2;
+            color: var(--text-main);
+        }
+
+        /* Accounts Container */
+        .accounts-section {
+            background-color: var(--card-bg);
+            border-radius: 24px;
+            margin: 0 20px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.03);
+            display: flex;
+            gap: 15px;
+            flex-grow: 1;
+        }
+
+        .account-icon {
+            width: 44px;
+            height: 44px;
+            background-color: var(--accent-blue);
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-shrink: 0;
+        }
+
+        .account-details {
+            flex-grow: 1;
+        }
+
+        .account-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+        }
+
+        .balance {
+            font-size: 18px;
+            font-weight: 700;
+        }
+
+        .account-name {
+            font-size: 14px;
+            color: var(--text-secondary);
+            margin-top: 2px;
+            margin-bottom: 12px;
+        }
+
+        .premium-badge {
+            background-color: #555555;
+            color: white;
+            font-size: 11px;
+            padding: 2px 8px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            font-weight: bold;
+        }
+
+        .cards-list {
+            display: flex;
+            gap: 8px;
+        }
+
+        .mini-card {
+            width: 46px;
+            height: 30px;
+            background-color: #222;
+            border-radius: 4px;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            align-items: flex-end;
+            padding: 3px 5px;
+        }
+
+        .mini-card span {
+            color: white;
+            font-size: 9px;
+            z-index: 2;
+        }
+
+        .card-design-1 { background: linear-gradient(135deg, #444, #111); }
+        .card-design-2 { background: linear-gradient(to right, #333 40%, #000 40%); border-left: 2px solid #555; }
+
+        /* Bottom Navigation */
+        .bottom-nav {
+            display: flex;
+            justify-content: space-around;
+            padding: 10px 0 25px;
+            background-color: #f7f8f9;
+            border-top: 1px solid #eef0f2;
+            margin-top: auto;
+        }
+
+        .nav-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            position: relative;
+        }
+
+        .nav-item span {
+            font-size: 10px;
+            color: var(--gray-icon);
+        }
+
+        .nav-item.active span {
+            color: var(--accent-blue);
+        }
+
+        .nav-badge {
+            position: absolute;
+            top: -5px;
+            right: 0px;
+            background-color: var(--red-badge);
+            color: white;
+            font-size: 10px;
+            font-weight: bold;
+            height: 16px;
+            min-width: 16px;
+            border-radius: 8px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 0 4px;
+            border: 2px solid #f7f8f9;
+        }
+    </style>
+</head>
+<body>
+
+<div class="app-container">
+    <header class="header">
+        <div class="user-profile">
+            <div class="avatar">Е</div>
+            <div class="user-name">Егор 
+                <svg width="12" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M9 18l6-6-6-6"/></svg>
+            </div>
+        </div>
+        <button class="gift-btn">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><rect x="3" y="8" width="18" height="12" rx="1"/><path d="M12 8v12"/><path d="M19 8c0-3-2-5-5-5-2 0-3 2-3 2s-1-2-3-2c-3 0-5 2-5 5"/></svg>
+        </button>
+    </header>
+
+    <div class="search-bar">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#9ea4ab" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+        <input type="text" placeholder="Поиск">
+    </div>
+
+    <div class="widgets">
+        <div class="widget-card">
+            <div class="widget-title">Все операции</div>
+            <div class="widget-subtitle">Трат в мае</div>
+            <div class="widget-amount">35 393 ₽</div>
+            <div class="progress-bar-container">
+                <div class="pb-segment" style="width: 35%; background: #4ec0ca;"></div>
+                <div class="pb-segment" style="width: 25%; background: #fd8f6b;"></div>
+                <div class="pb-segment" style="width: 20%; background: #4fb9b6;"></div>
+                <div class="pb-segment" style="width: 8%; background: #8e62e9;"></div>
+                <div class="pb-segment" style="width: 12%; background: #4775d1;"></div>
+            </div>
+        </div>
+        <div class="widget-card">
+            <div class="widget-title">Кэшбэк<br>и бонусы</div>
+            <div class="badge">1</div>
+            <div class="cashback-icons">
+                <div class="cashback-icon" style="background-color: #fff9ed; border-color: #fff; z-index: 3;">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#f0a841" stroke-width="1.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                </div>
+                <div class="cashback-icon" style="background-color: #ce0000; border-color: #fff; z-index: 2;">
+                    <span style="font-size: 6px;">Добрый</span>
+                </div>
+                <div class="cashback-icon" style="background-color: #0b347a; border-color: #fff; z-index: 1;">
+                    <span style="font-size: 6px;">Zemma</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="quick-actions">
+        <div class="action-item">
+            <div class="action-icon" style="background: linear-gradient(135deg, #e3e8f4, #f5eef1);">
+                <svg width="24" height="24" viewBox="0 0 24 24"><path fill="#f04040" d="M12 2L2 12h10V2z"/><path fill="#f9b000" d="M22 12l-10-10v10h10z"/><path fill="#00a859" d="M12 22l10-10H12v10z"/><path fill="#4063ac" d="M2 12l10 10V12H2z"/></svg>
+            </div>
+            <span>Перевести<br>по телефону</span>
+        </div>
+        <div class="action-item">
+            <div class="action-icon">
+                <svg width="24" height="24" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="#4287f5"/><path d="M12 7v10M7 12h10" stroke="white" stroke-width="2" stroke-linecap="round"/></svg>
+            </div>
+            <span>Пополнить<br>T-Bank Official</span>
+        </div>
+        <div class="action-item">
+            <div class="action-icon">
+                <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#6b9cf5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 16V4M7 4L3 8M7 4L11 8M17 8v12M17 20l-4-4M17 20l4-4"/></svg>
+            </div>
+            <span>Между<br>счетами</span>
+        </div>
+        <div class="action-item">
+            <div class="action-icon">
+                <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#4287f5" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="6" height="6" rx="1"/><rect x="15" y="3" width="6" height="6" rx="1"/><rect x="3" y="15" width="6" height="6" rx="1"/><path d="M15 15h6v6h-6z"/><path d="M15 21v-6h6"/></svg>
+            </div>
+            <span>Сканировать<br>QR-код</span>
+        </div>
+    </div>
+
+    <div class="accounts-section">
+        <div class="account-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24"><path fill="white" d="M14 6h-4V4h-2v2H6v2h2v4H6v2h2v2h2v-2h4v-2h-4v-4h4V6zm-4 6H8V8h2v4zm4 4h-2v-4h2v4z"/></svg>
+        </div>
+        <div class="account-details">
+            <div class="account-header">
+                <div>
+                    <div class="balance">0,66 ₽</div>
+                    <div class="account-name">T-Bank Official</div>
+                </div>
+                <div class="premium-badge">
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="white"><path d="M2 19h20v2H2v-2zm1-5l2.5-9 4.5 4.5L12 3l2 6.5 4.5-4.5L21 14H3z"/></svg>
+                    0 ₽
+                </div>
+            </div>
+            <div class="cards-list">
+                <div class="mini-card card-design-1">
+                    <span>7732</span>
+                </div>
+                <div class="mini-card card-design-2">
+                    <span>1311</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <nav class="bottom-nav">
+        <div class="nav-item active">
+            <div class="nav-badge">1</div>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="#3b7cf6"><path d="M12 2L3 6v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V6l-9-4h-2v2h2l7 3.11v4.89c0 4.5-3.04 8.7-7.5 9.77v-2.1c3.34-.95 5.5-4.22 5.5-7.67V8.5L12 5.5v-3.5zm-2 7H8v4H6v-4H4v-2h2V7h2v2h2v2z"/></svg>
+            <span>Главная</span>
+        </div>
+        <div class="nav-item">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#a6abb4" stroke-width="2"><circle cx="12" cy="12" r="8"/></svg>
+            <span>Платежи</span>
+        </div>
+        <div class="nav-item">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="#a6abb4"><path d="M12 2L2 12h3v8h14v-8h3L12 2zm0 2.8l5 5V18H7v-8.2l5-5z"/></svg>
+            <span>Город</span>
+        </div>
+        <div class="nav-item">
+            <div class="nav-badge">10</div>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="#a6abb4"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zM6 9h12v2H6V9zm8 5H6v-2h8v2zm4-6H6V6h12v2z"/></svg>
+            <span>Чат</span>
+        </div>
+        <div class="nav-item">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="#a6abb4"><rect x="3" y="3" width="8" height="8" rx="2"/><rect x="13" y="3" width="8" height="8" rx="2"/><rect x="3" y="13" width="8" height="8" rx="2"/><rect x="13" y="13" width="8" height="8" rx="2"/></svg>
+            <span>Витрина</span>
+        </div>
+    </nav>
+</div>
+
+</body>
+</html>

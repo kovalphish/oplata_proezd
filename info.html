@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Детали операции</title>
+    <style>
+        :root {
+            --bg-overlay: #4a4a4a;
+            --sheet-bg: #ffffff;
+            --text-main: #1d1d1d;
+            --text-secondary: #8c8f94;
+            --accent-blue: #3b7cf6;
+            --btn-bg: #f2f7ff;
+            --app-width: 400px;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        body {
+            background-color: #333;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        /* Имитация экрана мобильного устройства с открытым модальным окном */
+        .app-container {
+            width: 100%;
+            max-width: var(--app-width);
+            background-color: var(--bg-overlay);
+            height: 100vh;
+            max-height: 850px;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+        }
+
+        /* Само модальное окно (Bottom Sheet) */
+        .bottom-sheet {
+            background-color: #f7f8f9; /* Общий фон чуть серый внизу, но верх белый */
+            background: linear-gradient(to bottom, #ffffff 0%, #ffffff 70%, #f7f8f9 100%);
+            border-radius: 20px 20px 0 0;
+            width: 100%;
+            height: 95%;
+            display: flex;
+            flex-direction: column;
+            padding-bottom: 20px;
+            overflow-y: auto;
+        }
+
+        /* Шапка модального окна */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 20px;
+            position: sticky;
+            top: 0;
+            background-color: #ffffff;
+            z-index: 10;
+            border-radius: 20px 20px 0 0;
+        }
+
+        .close-btn {
+            color: var(--accent-blue);
+            font-size: 16px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            width: 70px;
+            text-align: left;
+        }
+
+        .datetime {
+            font-size: 15px;
+            color: var(--text-main);
+            font-weight: 500;
+        }
+
+        .header-spacer {
+            width: 70px; /* Для центрирования даты */
+        }
+
+        /* Основная информация о транзакции */
+        .tx-main {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px 20px 30px;
+            background-color: #ffffff;
+        }
+
+        .tx-icon-container {
+            width: 72px;
+            height: 72px;
+            background-color: #444a45;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        /* Стилизация логотипа (щит) */
+        .shield-logo {
+            width: 32px;
+            height: 38px;
+            background: linear-gradient(to bottom, #ffffff 50%, #009900 50%);
+            border: 1px solid #ffffff;
+            border-radius: 4px 4px 10px 10px;
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .shield-logo::after {
+            content: '🐪'; /* Имитация верблюда на гербе */
+            font-size: 20px;
+            position: absolute;
+            top: 4px;
+        }
+
+        .tx-title {
+            font-size: 20px;
+            font-weight: 500;
+            color: var(--text-main);
+            text-align: center;
+            line-height: 1.3;
+            margin-bottom: 12px;
+        }
+
+        .tx-category-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 24px;
+        }
+
+        .category-pill {
+            background-color: #fdfaf0;
+            color: #8c8f94;
+            font-size: 14px;
+            padding: 4px 12px;
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .edit-icon {
+            width: 24px;
+            height: 24px;
+            background-color: #f2f7ff;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: var(--accent-blue);
+            cursor: pointer;
+        }
+
+        .tx-amount {
+            font-size: 38px;
+            font-weight: 800;
+            color: var(--text-main);
+            letter-spacing: -1px;
+        }
+
+        /* Кнопки действий */
+        .actions-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 12px;
+            padding: 0 20px 24px;
+            background-color: #ffffff;
+        }
+
+        .action-btn {
+            background-color: var(--btn-bg);
+            border-radius: 16px;
+            padding: 16px 8px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+            border: none;
+            color: var(--accent-blue);
+        }
+
+        .action-btn span {
+            font-size: 13px;
+            font-weight: 500;
+        }
+
+        /* Блок информации о карте */
+        .card-details-section {
+            padding: 0 20px;
+            margin-top: 10px;
+        }
+
+        .card-box {
+            background-color: #ffffff;
+            border-radius: 20px;
+            padding: 20px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.03);
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .card-header h3 {
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--text-main);
+        }
+
+        .card-header a {
+            color: var(--accent-blue);
+            text-decoration: none;
+            font-size: 15px;
+        }
+
+        .card-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .card-info-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .mini-card-icon {
+            width: 48px;
+            height: 32px;
+            background: linear-gradient(135deg, #a0a4a8, #7d8287);
+            border-radius: 6px;
+            position: relative;
+            padding: 4px;
+            display: flex;
+            align-items: flex-end;
+            box-shadow: inset 0 0 0 1px rgba(0,0,0,0.1);
+        }
+
+        .mini-card-icon span {
+            color: white;
+            font-size: 10px;
+            font-weight: 500;
+        }
+
+        .mini-card-logo {
+            position: absolute;
+            bottom: 4px;
+            right: 4px;
+            display: flex;
+        }
+        
+        .mini-card-logo div {
+            width: 8px; height: 8px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.7);
+        }
+        .mini-card-logo div:last-child { margin-left: -4px; }
+
+        .card-text-details {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .card-name {
+            font-size: 16px;
+            color: var(--text-main);
+        }
+
+        .card-balance {
+            font-size: 14px;
+            color: var(--text-secondary);
+        }
+
+        .chevron {
+            color: #cdd1d7;
+        }
+
+    </style>
+</head>
+<body>
+
+<div class="app-container">
+    <div class="bottom-sheet">
+        <div class="header">
+            <button class="close-btn">Закрыть</button>
+            <div class="datetime">20 мая • 07:41</div>
+            <div class="header-spacer"></div>
+        </div>
+
+        <div class="tx-main">
+            <div class="tx-icon-container">
+                <div class="shield-logo"></div>
+            </div>
+            <h2 class="tx-title">МУП "Служба организации<br>движения"</h2>
+            
+            <div class="tx-category-row">
+                <div class="category-pill">
+                    <span style="color: #f0a841;">🚎</span> Местный транспорт • MCC 4131
+                </div>
+                <div class="edit-icon">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+                </div>
+            </div>
+
+            <div class="tx-amount">−44 ₽</div>
+        </div>
+
+        <div class="actions-grid">
+            <button class="action-btn">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M4.93 4.93l14.14 14.14"/></svg>
+                <span>Не учитывать</span>
+            </button>
+            <button class="action-btn">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 13l-3.5 3.5c-.78.78-2.05.78-2.83 0L5 13.83c-.78-.78-.78-2.05 0-2.83L8.5 7.5"/><path d="M16 11l3.5-3.5c.78-.78.78-2.05 0-2.83l-2.67-2.67c-.78-.78-2.05-.78-2.83 0L10.5 5.5"/><path d="M12 12l2-2"/><path d="M22 22l-7-7"/></svg>
+                <span>Оспорить</span>
+            </button>
+            <button class="action-btn">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M8 8v8M16 8v8M8 8a4 4 0 0 1 8 0M8 16a4 4 0 0 0 8 0"/></svg>
+                <span>Разделить</span>
+            </button>
+        </div>
+
+        <div class="card-details-section">
+            <div class="card-box">
+                <div class="card-header">
+                    <h3>Покупка по карте</h3>
+                    <a href="#">Справка</a>
+                </div>
+                
+                <div class="card-row">
+                    <div class="card-info-left">
+                        <div class="mini-card-icon">
+                            <span>6921</span>
+                            <div class="mini-card-logo">
+                                <div></div><div></div>
+                            </div>
+                        </div>
+                        <div class="card-text-details">
+                            <div class="card-name">Платинум</div>
+                            <div class="card-balance">205,54 ₽</div>
+                        </div>
+                    </div>
+                    <div class="chevron">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+</body>
+</html>

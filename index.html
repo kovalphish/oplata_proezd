@@ -69,78 +69,131 @@
 
 <!-- ===== ГЛАВНАЯ ===== -->
 <div id="mainPage" class="page" style="display:none;">
-    <div class="app">
-        <div class="top-bar">
-            <div class="top-bar-left">
-                <svg width="24" height="28" viewBox="0 0 29 34" fill="none">
-                    <path fill="#FFDD2D" d="M0 3h29v14.58c0 3.74-2 7.2-5.23 9.07L14.5 32l-9.27-5.35A10.47 10.47 0 0 1 0 17.58V3Z"/>
-                    <path fill="#333" d="M8 11v4.56a4.04 4.04 0 0 1 3.02-1.18h1.4v5.3c0 1.4-.39 2.64-.95 3.32h6.06a5.44 5.44 0 0 1-.94-3.32v-5.3h1.4c1.27 0 2.4.47 3.01 1.18V11H8Z"/>
-                </svg>
-                <span class="top-bar-title">Т-Банк</span>
+    <div class="app-container">
+        <header class="header">
+            <div class="user-profile">
+                <div class="avatar">Е</div>
+                <div class="user-name" contenteditable="true" id="userName">Егор
+                    <svg width="12" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M9 18l6-6-6-6"/></svg>
+                </div>
             </div>
-            <button class="top-bar-notif">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#333" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
-                    <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
-                </svg>
+            <button class="gift-btn">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><rect x="3" y="8" width="18" height="12" rx="1"/><path d="M12 8v12"/><path d="M19 8c0-3-2-5-5-5-2 0-3 2-3 2s-1-2-3-2c-3 0-5 2-5 5"/></svg>
             </button>
+        </header>
+
+        <div class="search-bar">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#9ea4ab" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+            <input type="text" placeholder="Поиск">
         </div>
 
-        <div class="greeting">
-            <div class="greeting-text">Добрый день,</div>
-            <div class="greeting-name" contenteditable="true" id="userName">Евген</div>
-        </div>
-
-        <div class="card-widget">
-            <div class="card-widget-top">
-                <span class="card-widget-label">Счёт путешествий</span>
-                <span class="card-widget-num">4081 7810 6000 **** 2504</span>
+        <div class="widgets">
+            <div class="widget-card" id="allOperationsWidget">
+                <div class="widget-title">Все операции</div>
+                <div class="widget-subtitle">Трат в мае</div>
+                <div class="widget-amount">35 393 ₽</div>
+                <div class="progress-bar-container">
+                    <div class="pb-segment" style="width: 35%; background: #4ec0ca;"></div>
+                    <div class="pb-segment" style="width: 25%; background: #fd8f6b;"></div>
+                    <div class="pb-segment" style="width: 20%; background: #4fb9b6;"></div>
+                    <div class="pb-segment" style="width: 8%; background: #8e62e9;"></div>
+                    <div class="pb-segment" style="width: 12%; background: #4775d1;"></div>
+                </div>
             </div>
-            <div class="card-widget-balance">
-                <span class="card-widget-amount" id="mainCardAmount">0</span>
-                <span class="card-widget-cur">₽</span>
-            </div>
-        </div>
-
-        <div class="actions-grid">
-            <button id="qrPayBtn" class="action-btn action-btn-primary">
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                    <rect x="2" y="2" width="8" height="8" rx="1"/>
-                    <rect x="14" y="2" width="8" height="8" rx="1"/>
-                    <rect x="2" y="14" width="8" height="8" rx="1"/>
-                    <rect x="14" y="14" width="3" height="3"/>
-                    <rect x="19" y="14" width="3" height="3"/>
-                    <rect x="14" y="19" width="3" height="3"/>
-                </svg>
-                <span>Оплата по QR-коду</span>
-            </button>
-            <button id="historyBtn" class="action-btn action-btn-secondary">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                    <circle cx="12" cy="12" r="10"/>
-                    <polyline points="12 6 12 12 16 14"/>
-                </svg>
-                <span>История платежей</span>
-            </button>
-        </div>
-
-        <div class="section">
-            <div class="section-header">
-                <span>Последние операции</span>
-                <button id="goHistoryBtn" class="section-link">Все</button>
-            </div>
-            <div id="recentList" class="operation-list"></div>
-            <div id="recentEmpty" class="empty-state">
-                <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#ccc" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round">
-                    <circle cx="12" cy="12" r="10"/>
-                    <polyline points="12 6 12 12 16 14"/>
-                </svg>
-                <p>Платежей пока нет</p>
+            <div class="widget-card">
+                <div class="widget-title">Кэшбэк<br>и бонусы</div>
+                <div class="badge">1</div>
+                <div class="cashback-icons">
+                    <div class="cashback-icon" style="background-color: #fff9ed; border-color: #fff; z-index: 3;">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#f0a841" stroke-width="1.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                    </div>
+                    <div class="cashback-icon" style="background-color: #ce0000; border-color: #fff; z-index: 2;">
+                        <span style="font-size: 6px;">Добрый</span>
+                    </div>
+                    <div class="cashback-icon" style="background-color: #0b347a; border-color: #fff; z-index: 1;">
+                        <span style="font-size: 6px;">Zemma</span>
+                    </div>
+                </div>
             </div>
         </div>
 
-        <div class="footer-info">
-            <span id="totalPaymentsLabel">Нет платежей</span>
+        <div class="quick-actions">
+            <div class="action-item">
+                <div class="action-icon" style="background: linear-gradient(135deg, #e3e8f4, #f5eef1);">
+                    <svg width="24" height="24" viewBox="0 0 24 24"><path fill="#f04040" d="M12 2L2 12h10V2z"/><path fill="#f9b000" d="M22 12l-10-10v10h10z"/><path fill="#00a859" d="M12 22l10-10H12v10z"/><path fill="#4063ac" d="M2 12l10 10V12H2z"/></svg>
+                </div>
+                <span>Перевести<br>по телефону</span>
+            </div>
+            <div class="action-item">
+                <div class="action-icon">
+                    <svg width="24" height="24" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="#4287f5"/><path d="M12 7v10M7 12h10" stroke="white" stroke-width="2" stroke-linecap="round"/></svg>
+                </div>
+                <span>Пополнить<br>T-Bank Official</span>
+            </div>
+            <div class="action-item">
+                <div class="action-icon">
+                    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#6b9cf5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 16V4M7 4L3 8M7 4L11 8M17 8v12M17 20l-4-4M17 20l4-4"/></svg>
+                </div>
+                <span>Между<br>счетами</span>
+            </div>
+            <div class="action-item" id="scanQrBtn">
+                <div class="action-icon">
+                    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#4287f5" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="6" height="6" rx="1"/><rect x="15" y="3" width="6" height="6" rx="1"/><rect x="3" y="15" width="6" height="6" rx="1"/><path d="M15 15h6v6h-6z"/><path d="M15 21v-6h6"/></svg>
+                </div>
+                <span>Сканировать<br>QR-код</span>
+            </div>
         </div>
+
+        <div class="accounts-section">
+            <div class="account-icon">
+                <svg width="20" height="20" viewBox="0 0 24 24"><path fill="white" d="M14 6h-4V4h-2v2H6v2h2v4H6v2h2v2h2v-2h4v-2h-4v-4h4V6zm-4 6H8V8h2v4zm4 4h-2v-4h2v4z"/></svg>
+            </div>
+            <div class="account-details">
+                <div class="account-header">
+                    <div>
+                        <div class="balance" id="mainBalance">20 000 ₽</div>
+                        <div class="account-name">T-Bank Official</div>
+                    </div>
+                    <div class="premium-badge">
+                        <svg width="10" height="10" viewBox="0 0 24 24" fill="white"><path d="M2 19h20v2H2v-2zm1-5l2.5-9 4.5 4.5L12 3l2 6.5 4.5-4.5L21 14H3z"/></svg>
+                        0 ₽
+                    </div>
+                </div>
+                <div class="cards-list">
+                    <div class="mini-card card-design-1">
+                        <span>7732</span>
+                    </div>
+                    <div class="mini-card card-design-2">
+                        <span>1311</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <nav class="bottom-nav">
+            <div class="nav-item active">
+                <div class="nav-badge">1</div>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="#3b7cf6"><path d="M12 2L3 6v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V6l-9-4h-2v2h2l7 3.11v4.89c0 4.5-3.04 8.7-7.5 9.77v-2.1c3.34-.95 5.5-4.22 5.5-7.67V8.5L12 5.5v-3.5zm-2 7H8v4H6v-4H4v-2h2V7h2v2h2v2z"/></svg>
+                <span>Главная</span>
+            </div>
+            <div class="nav-item" id="paymentsNav">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#a6abb4" stroke-width="2"><circle cx="12" cy="12" r="8"/></svg>
+                <span>Платежи</span>
+            </div>
+            <div class="nav-item">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="#a6abb4"><path d="M12 2L2 12h3v8h14v-8h3L12 2zm0 2.8l5 5V18H7v-8.2l5-5z"/></svg>
+                <span>Город</span>
+            </div>
+            <div class="nav-item">
+                <div class="nav-badge">10</div>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="#a6abb4"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zM6 9h12v2H6V9zm8 5H6v-2h8v2zm4-6H6V6h12v2z"/></svg>
+                <span>Чат</span>
+            </div>
+            <div class="nav-item">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="#a6abb4"><rect x="3" y="3" width="8" height="8" rx="2"/><rect x="13" y="3" width="8" height="8" rx="2"/><rect x="3" y="13" width="8" height="8" rx="2"/><rect x="13" y="13" width="8" height="8" rx="2"/></svg>
+                <span>Витрина</span>
+            </div>
+        </nav>
     </div>
 </div>
 
@@ -174,38 +227,88 @@
 </div>
 
 <!-- ===== ЭКРАН ОПЛАТЫ (оригинал) ===== -->
-<header class="header" style="display:none;">
+<header id="paymentHeader" class="header" style="display:none;">
     <h1>Оплата проезда</h1>
 </header>
 
 <main class="main" id="paymentView" style="display:none;">
     <img src="logo.svg" class="logo" alt="Логотип">
-    <div class="vehicle" contenteditable="true">Автобус №22</div>
+    <div class="vehicle" contenteditable="true">МУП "Служба организации движения"</div>
     <div class="price" contenteditable="true">44 ₽</div>
     <div id="fixedTime"></div>
     <div class="vehicle-id">Т/С: 167</div>
     <button id="payBtn" class="pay-btn">Оплатить</button>
 </main>
 
-<!-- ===== ИСТОРИЯ ===== -->
+<!-- ===== ИСТОРИЯ (ОПЕРАЦИИ) ===== -->
 <div id="historyPage" class="page" style="display:none;">
     <div class="app">
-        <div class="page-header">
-            <button id="backFromHistory" class="page-back">
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#333" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <polyline points="15 18 9 12 15 6"/>
-                </svg>
+        <header class="top-nav">
+            <button id="backFromHistory" class="back-btn">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
             </button>
-            <span class="page-title">История платежей</span>
-            <button id="clearHistoryBtn" class="page-clear">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#999" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <polyline points="3 6 5 6 21 6"/>
-                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
-                </svg>
+            <h1 class="page-title">Операции</h1>
+            <button class="stats-btn">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M16 6h4v12h-4V6zm-6 4h4v8h-4v-8zM4 12h4v6H4v-6z"/></svg>
             </button>
+        </header>
+
+        <div class="search-bar">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#9ea4ab" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+            <input type="text" placeholder="Поиск">
         </div>
-        <div class="scroll-area">
-            <div id="historyList" class="operation-list"></div>
+
+        <div class="filters">
+            <div class="chip active">
+                Май
+                <svg class="chip-arrow" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+            </div>
+            <div class="chip">
+                Счета и карты
+                <svg class="chip-arrow" viewBox="0 0 24 24" fill="none" stroke="#1d1d1d" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+            </div>
+            <div class="chip">Без переводов</div>
+        </div>
+
+        <div class="summary-grid">
+            <div class="summary-card">
+                <div class="summary-amount">35 393 ₽</div>
+                <div class="summary-label">Траты</div>
+                <div class="pb-container">
+                    <div class="pb-segment" style="width: 35%; background: #4ec0ca;"></div>
+                    <div class="pb-segment" style="width: 25%; background: #fd8f6b;"></div>
+                    <div class="pb-segment" style="width: 20%; background: #4fb9b6;"></div>
+                    <div class="pb-segment" style="width: 8%; background: #8e62e9;"></div>
+                    <div class="pb-segment" style="width: 12%; background: #4775d1;"></div>
+                </div>
+            </div>
+            <div class="summary-card">
+                <div class="summary-amount">34 920 ₽</div>
+                <div class="summary-label">Доходы</div>
+                <div class="pb-container">
+                    <div class="pb-segment" style="width: 45%; background: #4ec0ca;"></div>
+                    <div class="pb-segment" style="width: 40%; background: #3b82a0;"></div>
+                    <div class="pb-segment" style="width: 15%; background: #6ae5b1;"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="promo-container">
+            <div class="promo-banner">
+                <div class="promo-close">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                </div>
+                <div class="promo-title">Исполняйте мечты<br>Долями без комиссии</div>
+                <div class="promo-subtitle">Ваш лимит — до 200 000 ₽</div>
+            </div>
+        </div>
+
+        <div class="transactions">
+            <div class="date-header" id="historyDateHeader">
+                <div class="date-title">Сегодня</div>
+                <div class="date-total" id="historyDateTotal">−165 ₽</div>
+            </div>
+            <div id="historyList"></div>
             <div id="historyEmpty" class="empty-state" style="padding:60px 0;">
                 <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="#ccc" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round">
                     <circle cx="12" cy="12" r="10"/>
@@ -218,39 +321,71 @@
     </div>
 </div>
 
-<!-- ===== ДЕТАЛИ ===== -->
-<div id="detailPage" class="page" style="display:none;">
-    <div class="app">
-        <div class="page-header">
-            <button id="backFromDetail" class="page-back">
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#333" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <polyline points="15 18 9 12 15 6"/>
-                </svg>
-            </button>
-            <span class="page-title">Детали платежа</span>
-            <span style="width:36px"></span>
-        </div>
-        <div class="scroll-area">
-            <div class="detail-hero">
-                <div class="detail-hero-price" id="detailPrice">44 ₽</div>
-                <div class="detail-hero-status" id="detailStatus">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
-                        <polyline points="22 4 12 14.01 9 11.01"/>
-                    </svg>
-                    Успешно
+<!-- ===== ДЕТАЛИ (bottom-sheet) ===== -->
+<div id="detailPage" style="display:none;">
+    <div class="app" id="detailApp">
+        <div class="bottom-sheet">
+            <div class="detail-header">
+                <button id="backFromDetail" class="close-btn">Закрыть</button>
+                <div class="datetime" id="detailDatetime"></div>
+                <div class="header-spacer"></div>
+            </div>
+
+            <div class="tx-main">
+                <div class="tx-icon-container">
+                    <div class="shield-logo"></div>
+                </div>
+                <h2 class="tx-title" id="detailTitle"></h2>
+
+                <div class="tx-category-row">
+                    <div class="category-pill" id="detailCategory">🚎 Местный транспорт • MCC 4131</div>
+                    <div class="edit-icon">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+                    </div>
+                </div>
+
+                <div class="tx-amount" id="detailPrice"></div>
+            </div>
+
+            <div class="actions-grid">
+                <button class="action-btn">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M4.93 4.93l14.14 14.14"/></svg>
+                    <span>Не учитывать</span>
+                </button>
+                <button class="action-btn">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 13l-3.5 3.5c-.78.78-2.05.78-2.83 0L5 13.83c-.78-.78-.78-2.05 0-2.83L8.5 7.5"/><path d="M16 11l3.5-3.5c.78-.78.78-2.05 0-2.83l-2.67-2.67c-.78-.78-2.05-.78-2.83 0L10.5 5.5"/><path d="M12 12l2-2"/><path d="M22 22l-7-7"/></svg>
+                    <span>Оспорить</span>
+                </button>
+                <button class="action-btn">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M8 8v8M16 8v8M8 8a4 4 0 0 1 8 0M8 16a4 4 0 0 0 8 0"/></svg>
+                    <span>Разделить</span>
+                </button>
+            </div>
+
+            <div class="card-details-section">
+                <div class="card-box">
+                    <div class="card-header">
+                        <h3>Покупка по карте</h3>
+                        <a id="receiptBtn" href="#">Справка</a>
+                    </div>
+                    <div class="card-row" id="detailCardRow">
+                        <div class="card-info-left">
+                            <div class="mini-card-icon">
+                                <span>6921</span>
+                                <div class="mini-card-logo"><div></div><div></div></div>
+                            </div>
+                            <div class="card-text-details">
+                                <div class="card-name" id="detailCardName">Платинум</div>
+                                <div class="card-balance" id="detailBalance">205,54 ₽</div>
+                            </div>
+                        </div>
+                        <div class="chevron">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#cdd1d7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>
+                        </div>
+                    </div>
                 </div>
             </div>
-            <div class="detail-rows" id="detailRows"></div>
-            <button id="receiptBtn" class="receipt-btn">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1-2-1z"/>
-                    <line x1="8" y1="7" x2="16" y2="7"/>
-                    <line x1="8" y1="11" x2="16" y2="11"/>
-                    <line x1="8" y1="15" x2="12" y2="15"/>
-                </svg>
-                Справка
-            </button>
+
         </div>
     </div>
 </div>

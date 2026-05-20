@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Операции</title>
+    <style>
+        :root {
+            --bg-color: #f7f8f9;
+            --card-bg: #ffffff;
+            --text-main: #1d1d1d;
+            --text-secondary: #8c8f94;
+            --accent-blue: #3b7cf6;
+            --promo-bg: linear-gradient(135deg, #9b72ff, #b594ff);
+            --app-width: 400px;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        body {
+            background-color: #e0e0e0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .app-container {
+            width: 100%;
+            max-width: var(--app-width);
+            background-color: var(--card-bg); /* В этом макете фон белый */
+            height: 100vh;
+            max-height: 850px;
+            overflow-y: auto;
+            position: relative;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Top Navigation */
+        .top-nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 20px 15px;
+            background-color: var(--card-bg);
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .back-btn {
+            background: none;
+            border: none;
+            color: var(--accent-blue);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+        }
+
+        .page-title {
+            font-size: 20px;
+            font-weight: 600;
+            color: var(--text-main);
+            flex-grow: 1;
+            margin-left: 20px;
+        }
+
+        .stats-btn {
+            background: none;
+            border: none;
+            color: var(--accent-blue);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+        }
+
+        /* Search */
+        .search-bar {
+            margin: 0 20px 16px;
+            background-color: #f2f3f5;
+            border-radius: 12px;
+            padding: 10px 16px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .search-bar input {
+            border: none;
+            background: none;
+            outline: none;
+            font-size: 16px;
+            width: 100%;
+            color: var(--text-main);
+        }
+
+        .search-bar input::placeholder {
+            color: #9ea4ab;
+        }
+
+        /* Filters (Horizontal Scroll) */
+        .filters {
+            display: flex;
+            gap: 8px;
+            padding: 0 20px 16px;
+            overflow-x: auto;
+            scrollbar-width: none; /* Firefox */
+        }
+        
+        .filters::-webkit-scrollbar {
+            display: none; /* Chrome/Safari */
+        }
+
+        .chip {
+            background-color: #f2f3f5;
+            color: var(--text-main);
+            padding: 8px 14px;
+            border-radius: 16px;
+            font-size: 14px;
+            font-weight: 500;
+            white-space: nowrap;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            cursor: pointer;
+        }
+
+        .chip.active {
+            background-color: var(--accent-blue);
+            color: white;
+        }
+
+        .chip-arrow {
+            width: 10px;
+            height: 10px;
+        }
+
+        /* Summary Cards */
+        .summary-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            padding: 0 20px 20px;
+            background-color: var(--bg-color); /* Серый фон подложки */
+            padding-top: 20px;
+            border-radius: 24px 24px 0 0;
+        }
+
+        .summary-card {
+            background-color: var(--card-bg);
+            border-radius: 20px;
+            padding: 16px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.02);
+        }
+
+        .summary-amount {
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--text-main);
+            margin-bottom: 4px;
+        }
+
+        .summary-label {
+            font-size: 14px;
+            color: var(--text-secondary);
+            margin-bottom: 16px;
+        }
+
+        /* Progress Bars */
+        .pb-container {
+            display: flex;
+            height: 6px;
+            border-radius: 3px;
+            overflow: hidden;
+            width: 100%;
+        }
+        
+        .pb-segment { height: 100%; }
+
+        /* Promo Banner */
+        .promo-container {
+            padding: 0 20px 20px;
+            background-color: var(--bg-color);
+        }
+
+        .promo-banner {
+            background: var(--promo-bg);
+            border-radius: 20px;
+            padding: 16px;
+            position: relative;
+            color: white;
+            box-shadow: 0 4px 12px rgba(155, 114, 255, 0.2);
+        }
+
+        .promo-title {
+            font-size: 16px;
+            font-weight: 700;
+            line-height: 1.3;
+            margin-bottom: 8px;
+            padding-right: 24px;
+        }
+
+        .promo-subtitle {
+            font-size: 13px;
+            opacity: 0.9;
+        }
+
+        .promo-close {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            width: 24px;
+            height: 24px;
+            background-color: rgba(0,0,0,0.15);
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+        }
+
+        /* Transactions List */
+        .transactions {
+            background-color: var(--card-bg);
+            flex-grow: 1;
+            padding: 0 20px 20px;
+        }
+
+        .date-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            margin-bottom: 16px;
+            padding-top: 10px;
+        }
+
+        .date-title {
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--text-main);
+        }
+
+        .date-total {
+            font-size: 15px;
+            color: #b0b4ba;
+            font-weight: 500;
+        }
+
+        .tx-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .tx-icon-wrap {
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            margin-right: 12px;
+            flex-shrink: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+            background-color: #444a45; /* Фон для транспорта */
+        }
+
+        .tx-icon-wrap.red { background-color: #e31e24; }
+
+        /* Имитация иконки транспорта */
+        .transport-icon {
+            width: 20px;
+            height: 20px;
+            background-color: #009900;
+            position: relative;
+            border: 1px solid white;
+        }
+        .transport-icon::after {
+            content: '';
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            width: 10px; height: 10px;
+            background-color: #ffcc00;
+            border-radius: 2px;
+        }
+
+        /* Имитация иконки Пятерочки */
+        .five-icon {
+            color: white;
+            font-size: 24px;
+            font-weight: 800;
+            font-style: italic;
+            font-family: Arial, sans-serif;
+            border: 2px solid white;
+            border-radius: 50%;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            line-height: 1;
+            padding-right: 2px;
+        }
+
+        .tx-details {
+            flex-grow: 1;
+            overflow: hidden;
+        }
+
+        .tx-name {
+            font-size: 16px;
+            color: var(--text-main);
+            margin-bottom: 4px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .tx-category {
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+
+        .tx-amounts {
+            text-align: right;
+            margin-left: 10px;
+        }
+
+        .tx-value {
+            font-size: 16px;
+            color: var(--text-main);
+            margin-bottom: 4px;
+        }
+
+        .tx-account {
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+    </style>
+</head>
+<body>
+
+<div class="app-container">
+    <header class="top-nav">
+        <button class="back-btn">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+        </button>
+        <h1 class="page-title">Операции</h1>
+        <button class="stats-btn">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M16 6h4v12h-4V6zm-6 4h4v8h-4v-8zM4 12h4v6H4v-6z"/></svg>
+        </button>
+    </header>
+
+    <div class="search-bar">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#9ea4ab" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+        <input type="text" placeholder="Поиск">
+    </div>
+
+    <div class="filters">
+        <div class="chip active">
+            Май
+            <svg class="chip-arrow" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+        </div>
+        <div class="chip">
+            Счета и карты
+            <svg class="chip-arrow" viewBox="0 0 24 24" fill="none" stroke="#1d1d1d" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+        </div>
+        <div class="chip">Без переводов</div>
+    </div>
+
+    <div class="summary-grid">
+        <div class="summary-card">
+            <div class="summary-amount">35 393 ₽</div>
+            <div class="summary-label">Траты</div>
+            <div class="pb-container">
+                <div class="pb-segment" style="width: 35%; background: #4ec0ca;"></div>
+                <div class="pb-segment" style="width: 25%; background: #fd8f6b;"></div>
+                <div class="pb-segment" style="width: 20%; background: #4fb9b6;"></div>
+                <div class="pb-segment" style="width: 8%; background: #8e62e9;"></div>
+                <div class="pb-segment" style="width: 12%; background: #4775d1;"></div>
+            </div>
+        </div>
+        <div class="summary-card">
+            <div class="summary-amount">34 920 ₽</div>
+            <div class="summary-label">Доходы</div>
+            <div class="pb-container">
+                <div class="pb-segment" style="width: 45%; background: #4ec0ca;"></div>
+                <div class="pb-segment" style="width: 40%; background: #3b82a0;"></div>
+                <div class="pb-segment" style="width: 15%; background: #6ae5b1;"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="promo-container">
+        <div class="promo-banner">
+            <div class="promo-close">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+            </div>
+            <div class="promo-title">Исполняйте мечты<br>Долями без комиссии</div>
+            <div class="promo-subtitle">Ваш лимит — до 200 000 ₽</div>
+        </div>
+    </div>
+
+    <div class="transactions">
+        <div class="date-header">
+            <div class="date-title">Сегодня</div>
+            <div class="date-total">−165 ₽</div>
+        </div>
+
+        <div class="tx-item">
+            <div class="tx-icon-wrap">
+                <div class="transport-icon"></div>
+            </div>
+            <div class="tx-details">
+                <div class="tx-name">МУП "Служба организации дв...</div>
+                <div class="tx-category">Местный транспорт</div>
+            </div>
+            <div class="tx-amounts">
+                <div class="tx-value">−44 ₽</div>
+                <div class="tx-account">Платинум</div>
+            </div>
+        </div>
+
+        <div class="tx-item">
+            <div class="tx-icon-wrap red">
+                <div class="five-icon">5</div>
+            </div>
+            <div class="tx-details">
+                <div class="tx-name">Пятёрочка</div>
+                <div class="tx-category">Супермаркеты</div>
+            </div>
+            <div class="tx-amounts">
+                <div class="tx-value">−121,97 ₽</div>
+                <div class="tx-account">Платинум</div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+</body>
+</html>
