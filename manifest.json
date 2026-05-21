@@ -1,0 +1,22 @@
+{
+  "name": "Т-Банк",
+  "short_name": "Т-Банк",
+  "description": "Оплата проезда по QR-коду",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#FFDD2D",
+  "icons": [
+    {
+      "src": "tbank-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "tbank-icon.svg",
+      "sizes": "29x34",
+      "type": "image/svg+xml"
+    }
+  ]
+}

@@ -60,6 +60,7 @@ const userName = document.getElementById('userName');
 
 const backFromScanner = document.getElementById('backFromScanner');
 const backFromHistory = document.getElementById('backFromHistory');
+const backFromCard = document.getElementById('backFromCard');
 const backFromDetail = document.getElementById('backFromDetail');
 
 const historyPage = document.getElementById('historyPage');
@@ -67,6 +68,7 @@ const historyList = document.getElementById('historyList');
 const historyEmpty = document.getElementById('historyEmpty');
 const clearHistoryBtn = document.getElementById('clearHistoryBtn');
 
+const cardPage = document.getElementById('cardPage');
 const detailPage = document.getElementById('detailPage');
 const detailPrice = document.getElementById('detailPrice');
 const detailDatetime = document.getElementById('detailDatetime');
@@ -75,6 +77,19 @@ const detailCategory = document.getElementById('detailCategory');
 const detailCardName = document.getElementById('detailCardName');
 const detailBalance = document.getElementById('detailBalance');
 const receiptBtn = document.getElementById('receiptBtn');
+
+const transferPage = document.getElementById('transferPage');
+const successPage = document.getElementById('successPage');
+const transferPhone = document.getElementById('transferPhone');
+const transferAmount = document.getElementById('transferAmount');
+const doTransferBtn = document.getElementById('doTransferBtn');
+const backFromTransfer = document.getElementById('backFromTransfer');
+const closeSuccess = document.getElementById('closeSuccess');
+const successDoneBtn = document.getElementById('successDoneBtn');
+const successPhone = document.getElementById('successPhone');
+const successAmount = document.getElementById('successAmount');
+const successBankAbbr = document.getElementById('successBankAbbr');
+const successReceiptBtn = document.getElementById('successReceiptBtn');
 
 // ====== СОСТОЯНИЕ ======
 
@@ -102,6 +117,64 @@ function saveName() {
 userName.addEventListener('blur', saveName);
 userName.addEventListener('keydown', function(e) {
     if (e.key === 'Enter') { e.preventDefault(); this.blur(); }
+});
+
+// ====== БАЛАНС ======
+
+let balance = 20000;
+
+function loadBalance() {
+    try {
+        const saved = localStorage.getItem('tpay_balance');
+        if (saved !== null) balance = parseFloat(saved);
+        else { localStorage.setItem('tpay_balance', '20000'); }
+    } catch(e) {}
+    updateBalanceUI();
+}
+
+function saveBalance() {
+    try { localStorage.setItem('tpay_balance', balance.toString()); } catch(e) {}
+}
+
+function updateBalanceUI() {
+    const el = document.getElementById('mainBalance');
+    if (el) el.textContent = balance.toLocaleString('ru-RU') + ' ₽';
+    const cardBalances = document.querySelectorAll('#cardPage .dark-header .balance');
+    cardBalances.forEach(b => { b.textContent = balance.toLocaleString('ru-RU') + ' ₽'; });
+}
+
+function subtractBalance(amount) {
+    const num = parseFloat(amount.replace(/[^\d,]/g, '').replace(',', '.'));
+    if (isNaN(num)) return;
+    balance -= num;
+    if (balance < 0) balance = 0;
+    saveBalance();
+    updateBalanceUI();
+}
+
+// ====== БАНКОВСКИЕ ЧИПЫ ======
+
+let selectedBank = null;
+
+document.querySelectorAll('.bank-chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+        document.querySelectorAll('.bank-chip').forEach(c => c.classList.remove('active'));
+        chip.classList.add('active');
+        selectedBank = chip.dataset.bank;
+    });
+});
+
+// ====== ФОРМАТИРОВАНИЕ ТЕЛЕФОНА ======
+
+transferPhone.addEventListener('input', () => {
+    let val = transferPhone.value.replace(/\D/g, '');
+    if (val.length === 0) { transferPhone.value = ''; return; }
+    let formatted = '+7';
+    if (val.length > 1) formatted += ' (' + val.substring(1, 4);
+    if (val.length >= 5) formatted += ') ' + val.substring(4, 7);
+    if (val.length >= 8) formatted += '-' + val.substring(7, 9);
+    if (val.length >= 10) formatted += '-' + val.substring(9, 11);
+    transferPhone.value = formatted;
 });
 
 // ====== КАМЕРА ======
@@ -169,7 +242,7 @@ function hideProcessing() {
 // ====== НАВИГАЦИЯ ======
 
 function hideAll() {
-    const els = [mainPage, scannerView, paymentView, historyPage, detailPage, headerEl];
+    const els = [mainPage, scannerView, paymentView, historyPage, detailPage, cardPage, transferPage, successPage, headerEl];
     els.forEach(el => { if (el) el.style.display = 'none'; });
 }
 
@@ -238,7 +311,13 @@ async function showDetail(id) {
     if (!p) { isNavigating = false; return; }
 
     detailDatetime.textContent = `${p.date} • ${p.time}`;
-    detailTitle.textContent = p.vehicle;
+    if (p.type === 'transfer') {
+        detailTitle.textContent = p.phone || 'Перевод';
+        detailCategory.innerHTML = '🔵 Перевод через СБП';
+    } else {
+        detailTitle.textContent = p.vehicle;
+        detailCategory.innerHTML = '🚎 Местный транспорт • MCC 4131';
+    }
     detailPrice.textContent = `−${p.price}`;
 
     historyPage.style.overflow = 'hidden';
@@ -270,13 +349,16 @@ function generateReceiptNum() {
 
 function savePayment() {
     const now = new Date();
+    const price = document.querySelector('.price').textContent.trim();
+    subtractBalance(price);
     const payment = {
         id: generateId(),
+        type: 'fare',
         date: formatDate(now),
         time: formatTime(now),
         fullDate: format(now) + ":" + pad(now.getSeconds()),
         vehicle: 'МУП "Служба организации движения"',
-        price: document.querySelector('.price').textContent.trim(),
+        price: price,
         vehicleId: document.querySelector('.vehicle-id').textContent.trim(),
         status: "Успешно",
         store: "Оплата проезда на bilet.nspk.ru",
@@ -291,13 +373,45 @@ function savePayment() {
     return payment;
 }
 
+function saveTransferPayment(phone, bank, amount) {
+    const now = new Date();
+    subtractBalance(amount + ' ₽');
+    const payment = {
+        id: generateId(),
+        type: 'transfer',
+        date: formatDate(now),
+        time: formatTime(now),
+        fullDate: format(now) + ":" + pad(now.getSeconds()),
+        vehicle: 'Перевод через СБП',
+        price: amount + ' ₽',
+        phone: phone,
+        bank: bank,
+        status: "Успешно",
+        store: 'Перевод по номеру телефона',
+        account: phone,
+        legalName: bank,
+        transactionId: generateTransId(),
+        sbp: "30701",
+        receiptNumber: generateReceiptNum()
+    };
+    payments.unshift(payment);
+    saveToStorage();
+    return payment;
+}
+
 function fillReceipt(p) {
     receiptDate.textContent = p.fullDate;
     receiptSumBig.textContent = p.price;
     receiptSumSmall.textContent = p.price;
-    receiptStore.textContent = p.store;
-    receiptAccount.textContent = p.account;
-    receiptLegal.textContent = p.legalName;
+    if (p.type === 'transfer') {
+        receiptStore.textContent = 'Перевод по номеру телефона';
+        receiptAccount.textContent = p.phone || p.account;
+        receiptLegal.textContent = p.bank || p.legalName;
+    } else {
+        receiptStore.textContent = p.store;
+        receiptAccount.textContent = p.account;
+        receiptLegal.textContent = p.legalName;
+    }
     receiptTransId.textContent = p.transactionId;
     receiptSbp.textContent = p.sbp;
     receiptNumber.textContent = "Квитанция № " + p.receiptNumber;
@@ -335,21 +449,40 @@ function renderHistory() {
     }
     document.getElementById('historyDateHeader').style.display = 'flex';
     historyEmpty.style.display = 'none';
-    historyList.innerHTML = payments.map(p => `
-        <div class="tx-item" data-id="${p.id}">
-            <div class="tx-icon-wrap green">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="white"><rect x="4" y="5" width="16" height="14" rx="2"/><rect x="6" y="8" width="4" height="3" rx="1"/><rect x="12" y="8" width="4" height="3" rx="1"/><circle cx="8" cy="17" r="1.5" fill="#333"/><circle cx="16" cy="17" r="1.5" fill="#333"/></svg>
+    historyList.innerHTML = payments.map(p => {
+        if (p.type === 'transfer') {
+            return `
+                <div class="tx-item" data-id="${p.id}">
+                    <div class="tx-icon-wrap" style="background:#3b7cf6;">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="white"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
+                    </div>
+                    <div class="tx-details">
+                        <div class="tx-name">${p.phone || 'Перевод'}</div>
+                        <div class="tx-category">${p.bank || 'СБП'}</div>
+                    </div>
+                    <div class="tx-amounts">
+                        <div class="tx-value">−${p.price}</div>
+                        <div class="tx-account">СБП</div>
+                    </div>
+                </div>
+            `;
+        }
+        return `
+            <div class="tx-item" data-id="${p.id}">
+                <div class="tx-icon-wrap green">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="white"><rect x="4" y="5" width="16" height="14" rx="2"/><rect x="6" y="8" width="4" height="3" rx="1"/><rect x="12" y="8" width="4" height="3" rx="1"/><circle cx="8" cy="17" r="1.5" fill="#333"/><circle cx="16" cy="17" r="1.5" fill="#333"/></svg>
+                </div>
+                <div class="tx-details">
+                    <div class="tx-name">${p.vehicle}</div>
+                    <div class="tx-category">Местный транспорт</div>
+                </div>
+                <div class="tx-amounts">
+                    <div class="tx-value">−${p.price}</div>
+                    <div class="tx-account">Платинум</div>
+                </div>
             </div>
-            <div class="tx-details">
-                <div class="tx-name">${p.vehicle}</div>
-                <div class="tx-category">Местный транспорт</div>
-            </div>
-            <div class="tx-amounts">
-                <div class="tx-value">−${p.price}</div>
-                <div class="tx-account">Платинум</div>
-            </div>
-        </div>
-    `).join('');
+        `;
+    }).join('');
     historyList.querySelectorAll('.tx-item').forEach(el => {
         el.addEventListener('click', () => showDetail(el.dataset.id));
     });
@@ -363,13 +496,37 @@ function clearHistory() {
     renderHistory();
 }
 
+// ====== ПЕРЕВОД ======
+
+doTransferBtn.onclick = async () => {
+    const phone = transferPhone.value.trim();
+    const amount = transferAmount.value.trim();
+    if (!phone || phone.length < 10) { transferPhone.style.borderColor = '#e62e2e'; return; }
+    if (!amount || parseFloat(amount) < 1) { transferAmount.style.borderColor = '#e62e2e'; return; }
+    if (!selectedBank) return;
+
+    const payment = saveTransferPayment(phone, selectedBank, amount);
+    updateMain();
+
+    successPhone.textContent = phone;
+    successAmount.textContent = '− ' + amount + ' ₽';
+    successBankAbbr.textContent = selectedBank === 'МТС Банк' ? 'МТС' : selectedBank;
+
+    hideAll();
+    successPage.style.display = 'block';
+};
+
+transferPhone.addEventListener('focus', () => transferPhone.style.borderColor = '');
+transferAmount.addEventListener('focus', () => transferAmount.style.borderColor = '');
+
 // ====== СОБЫТИЯ ======
 
 payBtn.onclick = async () => {
     payBtn.disabled = true;
     payBtn.textContent = 'Оплачиваю...';
 
-    showProcessing('Оплата проходит', 'Спишем 44 ₽ со счёта путешествий');
+    const price = document.querySelector('.price').textContent.trim();
+    showProcessing('Оплата проходит', 'Спишем ' + price + ' со счёта путешествий');
     await delay(10000);
 
     hideProcessing();
@@ -386,9 +543,48 @@ modal.onclick = e => { if (e.target === modal) modal.style.display = 'none'; };
 
 captureCircle.onclick = goToPayment;
 
+backFromTransfer.onclick = () => {
+    hideAll();
+    cardPage.style.display = 'block';
+};
+closeSuccess.onclick = () => { hideAll(); showMain(); };
+successDoneBtn.onclick = () => { hideAll(); showMain(); };
+successReceiptBtn.onclick = () => {
+    const p = payments[0];
+    if (!p) return;
+    fillReceipt(p);
+    modal.style.display = 'flex';
+};
+
+document.getElementById('gotoTransferBtn').onclick = async () => {
+    if (isNavigating) return;
+    isNavigating = true;
+    hideAll();
+    selectedBank = null;
+    document.querySelectorAll('.bank-chip').forEach(c => c.classList.remove('active'));
+    transferPhone.value = '';
+    transferAmount.value = '';
+    mainSkeleton.style.display = 'block';
+    await delay(350);
+    mainSkeleton.style.display = 'none';
+    transferPage.style.display = 'block';
+    isNavigating = false;
+};
+
 scanQrBtn.onclick = showScanner;
 paymentsNav.onclick = showHistory;
 document.getElementById('allOperationsWidget').onclick = showHistory;
+document.getElementById('cardDetailBtn').onclick = async () => {
+    if (isNavigating) return;
+    isNavigating = true;
+    hideAll();
+    mainSkeleton.style.display = 'block';
+    await delay(400);
+    mainSkeleton.style.display = 'none';
+    cardPage.style.display = 'block';
+    isNavigating = false;
+};
+backFromCard.onclick = showMain;
 
 backFromScanner.onclick = showMain;
 backFromHistory.onclick = showMain;
@@ -413,6 +609,7 @@ receiptBtn.addEventListener('click', (e) => {
 
 loadName();
 loadFromStorage();
+loadBalance();
 
 (async function init() {
     await delay(1400);

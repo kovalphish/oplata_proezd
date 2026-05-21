@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Перевод выполнен</title>
+    <style>
+        :root {
+            --bg-color: #ffffff;
+            --text-main: #1d1d1d;
+            --text-secondary: #8c8f94;
+            --accent-blue: #3b7cf6;
+            --tinkoff-yellow: #fed628;
+            --app-width: 400px;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        body {
+            background-color: #333;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .app-container {
+            width: 100%;
+            max-width: var(--app-width);
+            background-color: var(--bg-color);
+            height: 100vh;
+            max-height: 850px;
+            position: relative;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+        }
+
+        /* Header */
+        .header {
+            padding: 20px;
+            display: flex;
+        }
+
+        .close-btn {
+            background: none;
+            border: none;
+            color: var(--accent-blue);
+            cursor: pointer;
+        }
+
+        /* Success Details */
+        .success-info {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .avatar-wrap {
+            position: relative;
+            margin-bottom: 20px;
+        }
+
+        .bank-avatar {
+            width: 80px;
+            height: 80px;
+            background-color: #e30611; /* МТС красный */
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            color: white;
+            font-family: Arial, sans-serif;
+        }
+        
+        .bank-avatar-logo {
+            display: flex;
+            align-items: center;
+            gap: 2px;
+            font-weight: 800;
+            font-size: 16px;
+        }
+
+        .drop-shape {
+            width: 12px;
+            height: 18px;
+            background-color: white;
+            border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
+            margin-right: 2px;
+        }
+
+        .check-badge {
+            position: absolute;
+            bottom: -5px;
+            right: -5px;
+            width: 32px;
+            height: 32px;
+            background-color: #2bcf63;
+            border-radius: 50%;
+            border: 3px solid white;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: white;
+        }
+
+        .user-name {
+            font-size: 18px;
+            font-weight: 500;
+            color: var(--text-main);
+            margin-bottom: 4px;
+        }
+
+        .user-phone {
+            font-size: 15px;
+            color: var(--text-secondary);
+            margin-bottom: 12px;
+        }
+
+        .sbp-badge {
+            background-color: #f4f5f7;
+            padding: 6px 12px;
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 13px;
+            font-weight: 500;
+            margin-bottom: 30px;
+        }
+
+        .sbp-logo {
+            display: flex;
+            gap: 2px;
+        }
+        .sbp-logo div { width: 4px; height: 4px; border-radius: 50%; }
+
+        .amount {
+            font-size: 32px;
+            font-weight: 800;
+            color: var(--text-main);
+            margin-bottom: 30px;
+        }
+
+        /* Receipt Button */
+        .receipt-btn {
+            background-color: #f0f5ff;
+            color: var(--accent-blue);
+            border: none;
+            border-radius: 16px;
+            padding: 16px 24px;
+            font-size: 14px;
+            font-weight: 500;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+        }
+
+        /* Promo Card */
+        .promo-wrapper {
+            margin-top: auto;
+            padding: 20px;
+        }
+
+        .promo-card {
+            background-color: #ffffff;
+            border-radius: 24px;
+            padding: 24px;
+            box-shadow: 0 -4px 30px rgba(0,0,0,0.05); /* Тень сверху для эффекта наложения */
+            position: relative;
+        }
+
+        .promo-tag {
+            background-color: #e6f7ec;
+            color: #2bcf63;
+            padding: 6px 12px;
+            border-radius: 16px;
+            font-size: 13px;
+            font-weight: 500;
+            display: inline-block;
+            margin-bottom: 12px;
+        }
+
+        .promo-title {
+            font-size: 18px;
+            font-weight: 700;
+            margin-bottom: 8px;
+            color: var(--text-main);
+        }
+
+        .promo-text {
+            font-size: 15px;
+            color: var(--text-secondary);
+            line-height: 1.4;
+            margin-bottom: 24px;
+        }
+
+        .done-btn {
+            background-color: var(--tinkoff-yellow);
+            color: var(--text-main);
+            border: none;
+            border-radius: 16px;
+            padding: 18px;
+            font-size: 16px;
+            font-weight: 500;
+            width: 100%;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(254, 214, 40, 0.3);
+        }
+
+    </style>
+</head>
+<body>
+
+<div class="app-container">
+    <div class="header">
+        <button class="close-btn">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+        </button>
+    </div>
+
+    <div class="success-info">
+        <div class="avatar-wrap">
+            <div class="bank-avatar">
+                <div class="bank-avatar-logo">
+                    <div class="drop-shape"></div>
+                    <div>МТС</div>
+                </div>
+                <div style="font-size: 10px; font-weight: bold; margin-top: 2px;">БАНК</div>
+            </div>
+            <div class="check-badge">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+            </div>
+        </div>
+
+        <div class="user-name">Егор К.</div>
+        <div class="user-phone">+7 982 666-82-00</div>
+        
+        <div class="sbp-badge">
+            <div class="sbp-logo">
+                <div style="background-color: #ed2840;"></div>
+                <div style="background-color: #f7a823;"></div>
+                <div style="background-color: #29b160;"></div>
+                <div style="background-color: #2777c6;"></div>
+            </div>
+            СБП
+        </div>
+
+        <div class="amount">- 1 ₽</div>
+
+        <button class="receipt-btn">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/></svg>
+            Квитанция
+        </button>
+    </div>
+
+    <div class="promo-wrapper">
+        <div class="promo-card">
+            <div class="promo-tag">Знаете ли вы?</div>
+            <div class="promo-title">Повод не нужен</div>
+            <div class="promo-text">18% клиентов отправляют деньги близким просто так.</div>
+            
+            <button class="done-btn">Готово</button>
+        </div>
+    </div>
+
+</div>
+
+</body>
+</html>
