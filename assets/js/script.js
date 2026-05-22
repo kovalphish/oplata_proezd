@@ -710,6 +710,7 @@ loadFromStorage();
 loadBalance();
 
 (async function init() {
+    hideAll();
     await delay(1400);
 
     splashScreen.classList.add('splash-hide');
