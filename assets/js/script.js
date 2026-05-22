@@ -599,15 +599,10 @@ doTransferBtn.onclick = async () => {
     const userName = names[nameIndex];
     const firstLetter = userName.charAt(0);
     successName.textContent = userName;
-    const oldAvatar = document.getElementById('successUserAvatar');
-    if (oldAvatar) oldAvatar.remove();
-    const avatar = document.createElement('div');
-    avatar.id = 'successUserAvatar';
-    avatar.className = 'user-avatar';
+    const avatar = document.getElementById('successUserAvatar');
     avatar.textContent = firstLetter;
     const colors = ['#e31e24', '#3b7cf6', '#21a038', '#f5a623', '#8e44ad', '#e67e22', '#1abc9c', '#e74c3c', '#3498db', '#2ecc71'];
     avatar.style.background = colors[userName.charCodeAt(0) % colors.length];
-    successName.parentNode.insertBefore(avatar, successName);
 
     hideAll();
     successPage.style.display = 'block';
