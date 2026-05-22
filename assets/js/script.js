@@ -87,9 +87,8 @@ const closeSuccess = document.getElementById('closeSuccess');
 const successDoneBtn = document.getElementById('successDoneBtn');
 const successPhone = document.getElementById('successPhone');
 const successAmount = document.getElementById('successAmount');
-const successBankAbbr = document.getElementById('successBankAbbr');
-const successName = document.getElementById('successName');
 const successReceiptBtn = document.getElementById('successReceiptBtn');
+const mainAvatar = document.getElementById('mainAvatar');
 
 // ====== СОСТОЯНИЕ ======
 
@@ -101,20 +100,29 @@ let isNavigating = false;
 
 // ====== ИМЯ ======
 
+function updateMainAvatar() {
+    const name = userName.textContent.trim();
+    const letter = name.charAt(0).toUpperCase() || '?';
+    mainAvatar.textContent = letter;
+}
+
 function loadName() {
     try {
         const saved = localStorage.getItem('tpay_name');
         if (saved) userName.textContent = saved;
     } catch(e) {}
+    updateMainAvatar();
 }
 
 function saveName() {
     try {
         localStorage.setItem('tpay_name', userName.textContent.trim());
     } catch(e) {}
+    updateMainAvatar();
 }
 
 userName.addEventListener('blur', saveName);
+userName.addEventListener('input', updateMainAvatar);
 userName.addEventListener('keydown', function(e) {
     if (e.key === 'Enter') { e.preventDefault(); this.blur(); }
 });
@@ -593,16 +601,13 @@ doTransferBtn.onclick = async () => {
 
     successPhone.textContent = phone;
     successAmount.textContent = '− ' + amount + ' ₽';
-    successBankAbbr.textContent = selectedBank === 'Сбер Банк' ? 'Сбер' : selectedBank === 'Т-Банк' ? 'Т-Банк' : selectedBank === 'Альфа Банк' ? 'Альфа' : selectedBank === 'Озон Банк' ? 'Озон' : selectedBank;
-    const names = ['Анна', 'Борис', 'Виктор', 'Галина', 'Дмитрий', 'Елена', 'Жанна', 'Захар', 'Ирина', 'Константин', 'Леонид', 'Марина', 'Наталья', 'Ольга', 'Павел', 'Роман', 'Светлана', 'Татьяна', 'Ульяна', 'Фёдор'];
-    const nameIndex = Math.floor(Math.random() * names.length);
-    const userName = names[nameIndex];
-    const firstLetter = userName.charAt(0);
-    successName.textContent = userName;
-    const avatar = document.getElementById('successUserAvatar');
-    avatar.textContent = firstLetter;
-    const colors = ['#e31e24', '#3b7cf6', '#21a038', '#f5a623', '#8e44ad', '#e67e22', '#1abc9c', '#e74c3c', '#3498db', '#2ecc71'];
-    avatar.style.background = colors[userName.charCodeAt(0) % colors.length];
+    const bankLogos = {
+        'Сбер Банк': 'assets/ico/sber.png',
+        'Т-Банк': 'assets/ico/tbank.png',
+        'Альфа Банк': 'assets/ico/alfa.svg',
+        'Озон Банк': 'assets/ico/ozon.png'
+    };
+    document.getElementById('successBankLogo').src = bankLogos[selectedBank] || 'assets/ico/tbank.png';
 
     hideAll();
     successPage.style.display = 'block';
