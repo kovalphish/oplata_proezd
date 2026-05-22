@@ -10,9 +10,9 @@
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="theme-color" content="#FFDD2D">
     <link rel="manifest" href="manifest.json">
-    <link rel="icon" type="image/svg+xml" href="tbank-icon.svg">
-    <link rel="apple-touch-icon" href="tbank-icon.svg">
-    <link rel="stylesheet" href="styles.css">
+    <link rel="icon" type="image/svg+xml" href="assets/ico/tbank.png">
+    <link rel="apple-touch-icon" href="assets/ico/tbank.png">
+    <link rel="stylesheet" href="assets/css/styles.css">
     <script src="https://cdn.jsdelivr.net/npm/jsqr@1.0.4/dist/jsQR.min.js"></script>
 </head>
 <body>
@@ -27,41 +27,6 @@
         <div class="splash-title">Т-Банк</div>
         <div class="splash-loader">
             <div class="splash-bar"></div>
-        </div>
-    </div>
-</div>
-
-<!-- ===== ЗАГЛУШКА ЗАГРУЗКИ ГЛАВНОЙ ===== -->
-<div id="mainSkeleton" class="page" style="display:none;">
-    <div class="app">
-        <div class="sk-top-bar">
-            <div class="sk-row">
-                <div class="sk-circle"></div>
-                <div class="sk-line sk-line-sm"></div>
-            </div>
-            <div class="sk-circle sk-circle-xs"></div>
-        </div>
-        <div style="padding:20px 16px 0;">
-            <div class="sk-line sk-line-xs" style="width:30%;"></div>
-            <div class="sk-line sk-line-md" style="width:45%;margin-top:8px;"></div>
-        </div>
-        <div style="margin:16px 16px 20px;padding:18px 20px;border-radius:14px;background:#2a1f5e;">
-            <div class="sk-line sk-line-xs" style="width:40%;background:rgba(255,255,255,0.15);"></div>
-            <div class="sk-line sk-line-lg" style="width:55%;margin-top:14px;background:rgba(255,255,255,0.12);"></div>
-            <div class="sk-line sk-line-xs" style="width:25%;margin-top:10px;background:rgba(255,255,255,0.08);"></div>
-        </div>
-        <div style="padding:0 16px;display:flex;flex-direction:column;gap:10px;">
-            <div class="sk-block" style="height:52px;border-radius:14px;"></div>
-            <div class="sk-block" style="height:52px;border-radius:14px;"></div>
-        </div>
-        <div style="padding:0 16px;margin-top:24px;">
-            <div style="display:flex;justify-content:space-between;margin-bottom:12px;">
-                <div class="sk-line sk-line-sm" style="width:35%;"></div>
-                <div class="sk-line sk-line-xs" style="width:8%;"></div>
-            </div>
-            <div class="sk-block" style="height:60px;border-radius:12px;margin-bottom:6px;"></div>
-            <div class="sk-block" style="height:60px;border-radius:12px;margin-bottom:6px;"></div>
-            <div class="sk-block" style="height:60px;border-radius:12px;"></div>
         </div>
     </div>
 </div>
@@ -86,12 +51,34 @@
                 </div>
             </div>
             <button class="gift-btn">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><rect x="3" y="8" width="18" height="12" rx="1"/><path d="M12 8v12"/><path d="M19 8c0-3-2-5-5-5-2 0-3 2-3 2s-1-2-3-2c-3 0-5 2-5 5"/></svg>
+                <img src="assets/ico/gift.svg" width="20" height="20" alt="">
             </button>
         </header>
 
+        <div class="page-skeleton" id="mainPageSkeleton" style="display:none;">
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:20px 0 0;">
+                <div style="display:flex;align-items:center;gap:12px;">
+                    <div class="sk-circle" style="width:42px;height:42px;border-radius:50%;"></div>
+                    <div class="sk-line" style="width:100px;height:24px;"></div>
+                </div>
+                <div class="sk-circle" style="width:42px;height:42px;border-radius:50%;"></div>
+            </div>
+            <div class="sk-block" style="height:44px;border-radius:16px;margin:12px 0 20px;"></div>
+            <div style="display:flex;gap:15px;margin-bottom:24px;">
+                <div class="sk-block" style="height:100px;border-radius:20px;flex:1;"></div>
+                <div class="sk-block" style="height:100px;border-radius:20px;flex:1;"></div>
+            </div>
+            <div style="display:flex;gap:10px;margin-bottom:24px;">
+                <div class="sk-block" style="height:74px;border-radius:18px;flex:1;"></div>
+                <div class="sk-block" style="height:74px;border-radius:18px;flex:1;"></div>
+                <div class="sk-block" style="height:74px;border-radius:18px;flex:1;"></div>
+                <div class="sk-block" style="height:74px;border-radius:18px;flex:1;"></div>
+            </div>
+            <div class="sk-block" style="height:110px;border-radius:24px;flex:1;"></div>
+        </div>
+
         <div class="search-bar">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#9ea4ab" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+            <img src="assets/ico/search.svg" width="18" height="18" alt="">
             <input type="text" placeholder="Поиск">
         </div>
 
@@ -99,7 +86,7 @@
             <div class="widget-card" id="allOperationsWidget">
                 <div class="widget-title">Все операции</div>
                 <div class="widget-subtitle">Трат в мае</div>
-                <div class="widget-amount">35 393 ₽</div>
+                <div class="widget-amount" id="mainTotalSpent">0 ₽</div>
                 <div class="progress-bar-container">
                     <div class="pb-segment" style="width: 35%; background: #4ec0ca;"></div>
                     <div class="pb-segment" style="width: 25%; background: #fd8f6b;"></div>
@@ -126,27 +113,27 @@
         </div>
 
         <div class="quick-actions">
-            <div class="action-item">
+            <div class="action-item" id="transferActionBtn">
                 <div class="action-icon" style="background: linear-gradient(135deg, #e3e8f4, #f5eef1);">
-                    <svg width="24" height="24" viewBox="0 0 24 24"><path fill="#f04040" d="M12 2L2 12h10V2z"/><path fill="#f9b000" d="M22 12l-10-10v10h10z"/><path fill="#00a859" d="M12 22l10-10H12v10z"/><path fill="#4063ac" d="M2 12l10 10V12H2z"/></svg>
+                    <img src="assets/ico/phone-handset.svg" width="24" height="24" alt="">
                 </div>
                 <span>Перевести<br>по телефону</span>
             </div>
             <div class="action-item">
                 <div class="action-icon">
-                    <svg width="24" height="24" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="#4287f5"/><path d="M12 7v10M7 12h10" stroke="white" stroke-width="2" stroke-linecap="round"/></svg>
+                    <img src="assets/ico/popolnit.png" width="26" height="26" alt="">
                 </div>
                 <span>Пополнить<br>T-Bank Official</span>
             </div>
             <div class="action-item">
                 <div class="action-icon">
-                    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#6b9cf5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 16V4M7 4L3 8M7 4L11 8M17 8v12M17 20l-4-4M17 20l4-4"/></svg>
+                    <img src="assets/ico/transfer-arrows.svg" width="26" height="26" alt="">
                 </div>
                 <span>Между<br>счетами</span>
             </div>
             <div class="action-item" id="scanQrBtn">
                 <div class="action-icon">
-                    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#4287f5" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="6" height="6" rx="1"/><rect x="15" y="3" width="6" height="6" rx="1"/><rect x="3" y="15" width="6" height="6" rx="1"/><path d="M15 15h6v6h-6z"/><path d="M15 21v-6h6"/></svg>
+                    <img src="assets/ico/qr-code.svg" width="26" height="26" alt="">
                 </div>
                 <span>Сканировать<br>QR-код</span>
             </div>
@@ -154,7 +141,7 @@
 
         <div class="accounts-section" id="cardDetailBtn">
             <div class="account-icon">
-                <svg width="20" height="20" viewBox="0 0 24 24"><path fill="white" d="M14 6h-4V4h-2v2H6v2h2v4H6v2h2v2h2v-2h4v-2h-4v-4h4V6zm-4 6H8V8h2v4zm4 4h-2v-4h2v4z"/></svg>
+                <img src="assets/ico/rub.png" width="20" height="20" alt="">
             </div>
             <div class="account-details">
                 <div class="account-header">
@@ -163,17 +150,13 @@
                         <div class="account-name">T-Bank Official</div>
                     </div>
                     <div class="premium-badge">
-                        <svg width="10" height="10" viewBox="0 0 24 24" fill="white"><path d="M2 19h20v2H2v-2zm1-5l2.5-9 4.5 4.5L12 3l2 6.5 4.5-4.5L21 14H3z"/></svg>
+                        <img src="assets/ico/star-white.svg" width="10" height="10" alt="">
                         0 ₽
                     </div>
                 </div>
                 <div class="cards-list">
-                    <div class="mini-card card-design-1">
-                        <span>7732</span>
-                    </div>
-                    <div class="mini-card card-design-2">
-                        <span>1311</span>
-                    </div>
+                    <img src="assets/ico/cart1.png" class="mini-card-img" alt="">
+                    <img src="assets/ico/cart2.png" class="mini-card-img" alt="">
                 </div>
             </div>
         </div>
@@ -181,7 +164,7 @@
         <nav class="bottom-nav">
             <div class="nav-item active">
                 <div class="nav-badge">1</div>
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="#3b7cf6"><path d="M12 2L3 6v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V6l-9-4h-2v2h2l7 3.11v4.89c0 4.5-3.04 8.7-7.5 9.77v-2.1c3.34-.95 5.5-4.22 5.5-7.67V8.5L12 5.5v-3.5zm-2 7H8v4H6v-4H4v-2h2V7h2v2h2v2z"/></svg>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="#3b7cf6"><path d="M12 2L2 12h3v8h14v-8h3L12 2zm0 2.8l5 5V18H7v-8.2l5-5z"/></svg>
                 <span>Главная</span>
             </div>
             <div class="nav-item" id="paymentsNav">
@@ -189,7 +172,7 @@
                 <span>Платежи</span>
             </div>
             <div class="nav-item">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="#a6abb4"><path d="M12 2L2 12h3v8h14v-8h3L12 2zm0 2.8l5 5V18H7v-8.2l5-5z"/></svg>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="#a6abb4"><path d="M2 7v4h20V7H2Z"/><path opacity=".7" fill-rule="evenodd" d="M7.09 2H6v2a3 3 0 0 0 3 3h6a3 3 0 0 0 3-3V2h-3a3 3 0 0 0-3 3 3 3 0 0 0-3-3H7.09Z"/><path opacity=".8" fill-rule="evenodd" d="M10 11H3v11h7V11Zm4 0v8a3 3 0 0 1-3 3h6a4 4 0 0 0 4-4v-7h-7Z"/><path opacity=".3" d="M14 11h-4v11h1a3 3 0 0 0 3-3v-8Z"/></svg>
                 <span>Город</span>
             </div>
             <div class="nav-item">
@@ -251,18 +234,44 @@
 <!-- ===== ИСТОРИЯ (ОПЕРАЦИИ) ===== -->
 <div id="historyPage" class="page" style="display:none;">
     <div class="app">
+        <div class="page-skeleton" id="historySkeleton" style="display:none;">
+            <div style="padding:20px;">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+                    <div style="display:flex;align-items:center;gap:20px;">
+                        <div class="sk-circle" style="width:24px;height:24px;"></div>
+                        <div class="sk-line" style="width:100px;height:20px;"></div>
+                    </div>
+                    <div class="sk-circle" style="width:24px;height:24px;"></div>
+                </div>
+                <div class="sk-block" style="height:38px;border-radius:12px;margin-bottom:16px;"></div>
+                <div style="display:flex;gap:8px;margin-bottom:20px;">
+                    <div class="sk-block" style="width:70px;height:32px;border-radius:16px;"></div>
+                    <div class="sk-block" style="width:120px;height:32px;border-radius:16px;"></div>
+                    <div class="sk-block" style="width:90px;height:32px;border-radius:16px;"></div>
+                </div>
+                <div style="display:flex;gap:12px;margin-bottom:20px;">
+                    <div class="sk-block" style="height:100px;border-radius:20px;flex:1;"></div>
+                    <div class="sk-block" style="height:100px;border-radius:20px;flex:1;"></div>
+                </div>
+                <div class="sk-block" style="height:80px;border-radius:20px;margin-bottom:20px;"></div>
+                <div class="sk-block" style="height:60px;border-radius:12px;margin-bottom:8px;"></div>
+                <div class="sk-block" style="height:60px;border-radius:12px;margin-bottom:8px;"></div>
+                <div class="sk-block" style="height:60px;border-radius:12px;"></div>
+            </div>
+        </div>
+
         <header class="top-nav">
             <button id="backFromHistory" class="back-btn">
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
             </button>
             <h1 class="page-title">Операции</h1>
             <button class="stats-btn">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M16 6h4v12h-4V6zm-6 4h4v8h-4v-8zM4 12h4v6H4v-6z"/></svg>
+                <img src="assets/ico/chart-stats.svg" width="24" height="24" alt="">
             </button>
         </header>
 
         <div class="search-bar">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#9ea4ab" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+            <img src="assets/ico/search.svg" width="18" height="18" alt="">
             <input type="text" placeholder="Поиск">
         </div>
 
@@ -280,7 +289,7 @@
 
         <div class="summary-grid">
             <div class="summary-card">
-                <div class="summary-amount">35 393 ₽</div>
+                <div class="summary-amount" id="historyTotalSpent">0 ₽</div>
                 <div class="summary-label">Траты</div>
                 <div class="pb-container">
                     <div class="pb-segment" style="width: 35%; background: #4ec0ca;"></div>
@@ -304,7 +313,7 @@
         <div class="promo-container">
             <div class="promo-banner">
                 <div class="promo-close">
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                    <img src="assets/ico/close-white.svg" width="12" height="12" alt="">
                 </div>
                 <div class="promo-title">Исполняйте мечты<br>Долями без комиссии</div>
                 <div class="promo-subtitle">Ваш лимит — до 200 000 ₽</div>
@@ -340,9 +349,9 @@
             </div>
 
             <div class="tx-main">
-                <div class="tx-icon-container">
-                    <div class="shield-logo"></div>
-                </div>
+                    <div class="tx-icon-container">
+                        <img id="detailIcon" class="detail-icon-img" src="" alt="">
+                    </div>
                 <h2 class="tx-title" id="detailTitle"></h2>
 
                 <div class="tx-category-row">
@@ -374,7 +383,7 @@
                 <div class="card-box">
                     <div class="card-header">
                         <h3>Покупка по карте</h3>
-                        <a id="receiptBtn" href="#">Справка</a>
+                        <a id="receiptBtn" href="#"><img src="assets/ico/document-receipt.svg" width="16" height="16" alt="" style="vertical-align:middle;margin-right:4px;">Справка</a>
                     </div>
                     <div class="card-row" id="detailCardRow">
                         <div class="card-info-left">
@@ -400,7 +409,41 @@
 
 <!-- ===== КАРТА (СЧЁТ) ===== -->
 <div id="cardPage" class="page" style="display:none;">
-    <div class="app">
+    <div class="app" style="position:relative;">
+        <div class="page-skeleton" id="cardPageSkeleton" style="display:none;">
+            <div style="padding:20px;">
+                <div class="sk-circle" style="width:28px;height:28px;margin-bottom:30px;"></div>
+                <div class="sk-line" style="width:140px;height:18px;margin-bottom:4px;"></div>
+                <div class="sk-line" style="width:200px;height:34px;margin-bottom:24px;"></div>
+                <div style="display:flex;gap:12px;">
+                    <div class="sk-block" style="width:60px;height:40px;border-radius:6px;"></div>
+                    <div class="sk-block" style="width:60px;height:40px;border-radius:6px;"></div>
+                    <div class="sk-block" style="width:60px;height:40px;border-radius:6px;"></div>
+                </div>
+            </div>
+            <div style="padding:0 20px;">
+                <div style="display:flex;gap:20px;margin-bottom:16px;background:#fff;border-radius:24px;padding:20px;justify-content:space-around;">
+                    <div style="display:flex;flex-direction:column;align-items:center;gap:10px;">
+                        <div class="sk-circle" style="width:48px;height:48px;border-radius:50%;"></div>
+                        <div class="sk-line" style="width:50px;height:12px;"></div>
+                    </div>
+                    <div style="display:flex;flex-direction:column;align-items:center;gap:10px;">
+                        <div class="sk-circle" style="width:48px;height:48px;border-radius:50%;"></div>
+                        <div class="sk-line" style="width:50px;height:12px;"></div>
+                    </div>
+                    <div style="display:flex;flex-direction:column;align-items:center;gap:10px;">
+                        <div class="sk-circle" style="width:48px;height:48px;border-radius:50%;"></div>
+                        <div class="sk-line" style="width:50px;height:12px;"></div>
+                    </div>
+                </div>
+                <div style="display:flex;gap:12px;margin-bottom:16px;">
+                    <div class="sk-block" style="height:140px;border-radius:20px;flex:1;"></div>
+                    <div class="sk-block" style="height:140px;border-radius:20px;flex:1;"></div>
+                </div>
+                <div class="sk-block" style="height:100px;border-radius:20px;margin-bottom:20px;"></div>
+            </div>
+        </div>
+
         <div class="dark-header">
             <div class="top-nav">
                 <button id="backFromCard" class="back-btn">
@@ -415,18 +458,10 @@
             </div>
             <div class="balance">530,66 ₽</div>
             <div class="cards-row">
-                <div class="mini-card card-eagle">
-                    <span>7732</span>
-                    <div style="position:absolute; bottom:6px; right:6px; display:flex;">
-                        <div style="width:6px; height:6px; border-radius:50%; background:rgba(255,255,255,0.8);"></div>
-                        <div style="width:6px; height:6px; border-radius:50%; background:rgba(255,255,255,0.8); margin-left:-3px;"></div>
-                    </div>
-                </div>
-                <div class="mini-card card-black">
-                    <span>1311</span>
-                </div>
+                <img src="assets/ico/cart1.png" class="mini-card-img" alt="" style="width:60px; height:38px; border-radius:6px; object-fit:cover;">
+                <img src="assets/ico/cart2.png" class="mini-card-img" alt="" style="width:60px; height:38px; border-radius:6px; object-fit:cover;">
                 <div class="add-card-btn">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+                    <img src="assets/ico/plus-circle.svg" width="20" height="20" alt="">
                 </div>
             </div>
         </div>
@@ -435,19 +470,19 @@
             <div class="actions-card">
                 <div class="action-item">
                     <div class="action-icon">
-                        <svg width="24" height="24" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="#4287f5"/><circle cx="12" cy="12" r="5" fill="white"/></svg>
+                        <img src="assets/ico/qr-code.svg" width="24" height="24" alt="">
                     </div>
                     <span>Оплатить</span>
                 </div>
                 <div class="action-item">
                     <div class="action-icon">
-                        <svg width="24" height="24" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="#4287f5"/><path d="M12 7v10M7 12h10" stroke="white" stroke-width="2" stroke-linecap="round"/></svg>
+                        <img src="assets/ico/popolnit.png" width="24" height="24" alt="">
                     </div>
                     <span>Пополнить</span>
                 </div>
                 <div class="action-item" id="gotoTransferBtn">
                     <div class="action-icon">
-                        <svg width="24" height="24" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="#4287f5"/><path d="M10 8l4 4-4 4" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M7 12h7" stroke="white" stroke-width="2" stroke-linecap="round"/></svg>
+                        <img src="assets/ico/transfer-arrows.svg" width="24" height="24" alt="">
                     </div>
                     <span>Перевести</span>
                 </div>
@@ -489,37 +524,102 @@
 
 <!-- ===== ПЕРЕВОД ===== -->
 <div id="transferPage" class="page" style="display:none;">
-    <div class="app" style="background:#f7f8f9;">
-        <div class="transfer-header">
-            <button id="backFromTransfer" class="transfer-back">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#3b7cf6" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
-            </button>
-            <h1 class="transfer-title">Перевод по номеру телефона</h1>
+    <div class="app" style="background:#fff;position:relative;">
+        <div class="page-skeleton" id="transferSkeleton" style="display:none;">
+            <div style="padding:20px;">
+                <div style="display:flex;align-items:center;margin-bottom:20px;">
+                    <div class="sk-circle" style="width:28px;height:28px;"></div>
+                    <div class="sk-line" style="width:140px;height:18px;margin:0 auto;"></div>
+                </div>
+                <div class="sk-block" style="height:90px;border-radius:20px;margin-bottom:10px;"></div>
+                <div style="display:flex;justify-content:center;gap:6px;margin-bottom:24px;">
+                    <div class="sk-circle" style="width:6px;height:6px;border-radius:50%;"></div>
+                    <div class="sk-circle" style="width:6px;height:6px;border-radius:50%;"></div>
+                    <div class="sk-circle" style="width:6px;height:6px;border-radius:50%;"></div>
+                    <div class="sk-circle" style="width:6px;height:6px;border-radius:50%;"></div>
+                </div>
+                <div class="sk-block" style="height:44px;border-radius:16px;margin-bottom:20px;"></div>
+                <div style="display:flex;gap:12px;margin-bottom:24px;">
+                    <div class="sk-block" style="width:105px;height:115px;border-radius:16px;"></div>
+                    <div class="sk-block" style="width:105px;height:115px;border-radius:16px;"></div>
+                    <div class="sk-block" style="width:105px;height:115px;border-radius:16px;"></div>
+                </div>
+                <div class="sk-block" style="height:44px;border-radius:16px;margin-bottom:20px;"></div>
+                <div class="sk-block" style="height:56px;border-radius:16px;margin-top:auto;"></div>
+            </div>
         </div>
 
-        <div class="transfer-form">
-            <label class="transfer-label">Номер телефона</label>
-            <input type="tel" id="transferPhone" class="transfer-input" placeholder="+7 (___) ___-__-__" maxlength="18">
+        <div class="trans-header">
+            <button id="backFromTransfer" class="trans-back">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#3b7cf6" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+            </button>
+            <div class="trans-title">Перевод по телефону</div>
+        </div>
 
-            <label class="transfer-label">Банк получателя</label>
-            <div class="bank-chips">
-                <div class="bank-chip" data-bank="Сбербанк">Сбербанк</div>
-                <div class="bank-chip" data-bank="Т-Банк">Т-Банк</div>
-                <div class="bank-chip" data-bank="Альфа-Банк">Альфа-Банк</div>
-                <div class="bank-chip" data-bank="ВТБ">ВТБ</div>
-                <div class="bank-chip" data-bank="МТС Банк">МТС Банк</div>
-                <div class="bank-chip" data-bank="Другой">Другой</div>
+        <div class="source-account">
+            <div class="source-header">
+                c T-Bank Official
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+            </div>
+            <div class="source-balance" id="transferSourceBalance">529,66 ₽</div>
+        </div>
+
+        <div class="dots-pagination">
+            <div class="dot active"></div>
+            <div class="dot"></div>
+            <div class="dot"></div>
+            <div class="dot"></div>
+            <div class="eye-icon">
+                <img src="assets/ico/eye-visible.svg" width="16" height="16" alt="">
+            </div>
+        </div>
+
+        <div class="recipient-block">
+            <input type="tel" id="transferPhone" class="recipient-phone" placeholder="+7 (___) ___-__-__" maxlength="18" value="">
+        </div>
+
+        <div class="banks-scroll">
+            <div class="bank-item" data-bank="Сбер Банк" style="background:#e8f5e9;">
+                <div class="bank-logo-wrap">
+                    <img src="assets/ico/sber.png" width="28" height="28" alt="">
+                </div>
+                <div class="bank-name">Сбер Банк</div>
+            </div>
+            <div class="bank-item" data-bank="Т-Банк">
+                <div class="bank-logo-wrap">
+                    <img src="assets/ico/tbank.png" width="28" height="28" alt="">
+                </div>
+                <div class="bank-name">Т-Банк</div>
+            </div>
+            <div class="bank-item" data-bank="Альфа Банк" style="background:#ffebee;">
+                <div class="bank-logo-wrap">
+                    <img src="assets/ico/alfa.svg" width="28" height="28" alt="">
+                </div>
+                <div class="bank-name">Альфа Банк</div>
+            </div>
+            <div class="bank-item" data-bank="Озон Банк" style="background:#e8f0fe;">
+                <div class="bank-logo-wrap">
+                    <img src="assets/ico/ozon.png" width="28" height="28" alt="">
+                </div>
+                <div class="bank-name">Озон Банк</div>
+            </div>
+        </div>
+
+        <div class="trans-details">
+            <div class="amount-input-row">
+                <input type="number" id="transferAmount" class="amount-placeholder" placeholder="Введите сумму" min="1">
+                <div class="calc-icon">
+                    <img src="assets/ico/plus-circle.svg" width="18" height="18" alt="">
+                </div>
             </div>
 
-            <label class="transfer-label">Сумма</label>
-            <div class="transfer-amount-wrap">
-                <input type="number" id="transferAmount" class="transfer-amount-input" placeholder="0" min="1">
-                <span class="transfer-currency">₽</span>
-            </div>
+            <div class="commission-text">Размер комиссии будет уточнен после ввода реквизитов платежа</div>
 
-            <div class="transfer-fee">Без комиссии</div>
+            <input type="text" class="message-input" placeholder="Сообщение получателю">
+        </div>
 
-            <button id="doTransferBtn" class="transfer-submit">Перевести</button>
+        <div class="bottom-action">
+            <button id="doTransferBtn" class="trans-submit">Перевести</button>
         </div>
     </div>
 </div>
@@ -533,21 +633,21 @@
             </button>
         </div>
 
-        <div class="success-info">
-            <div class="avatar-wrap">
-                <div class="bank-avatar" id="successBankIcon">
-                    <div class="bank-avatar-logo">
-                        <div class="drop-shape"></div>
-                        <div id="successBankAbbr">МТС</div>
+            <div class="success-info">
+                <div class="avatar-wrap">
+                    <div class="bank-avatar" id="successBankIcon">
+                        <div class="bank-avatar-logo">
+                            <div class="drop-shape"></div>
+                            <div id="successBankAbbr">МТС</div>
+                        </div>
+                        <div style="font-size: 10px; font-weight: bold; margin-top: 2px;">БАНК</div>
                     </div>
-                    <div style="font-size: 10px; font-weight: bold; margin-top: 2px;">БАНК</div>
+                    <div class="check-badge">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+                    </div>
                 </div>
-                <div class="check-badge">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
-                </div>
-            </div>
 
-            <div class="user-name" id="successName">Егор К.</div>
+                <div class="user-name" id="successName">Егор К.</div>
             <div class="user-phone" id="successPhone">+7 982 666-82-00</div>
 
             <div class="sbp-badge">
@@ -563,7 +663,7 @@
             <div class="amount" id="successAmount">− 1 ₽</div>
 
             <button class="receipt-btn" id="successReceiptBtn">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/></svg>
+                <img src="assets/ico/document-receipt.svg" width="24" height="24" alt="">
                 Квитанция
             </button>
         </div>
@@ -579,39 +679,31 @@
     </div>
 </div>
 
-<!-- ===== ЧЕК (оригинал) ===== -->
+<!-- ===== ЧЕК ===== -->
 <div id="modal" class="modal">
     <div class="modal-content">
         <span id="closeBtn" class="close">&times;</span>
         <div class="receipt-body">
             <div class="t-logo-wrap">
-                <img src="logot.png" alt="Логотип Т" style="width:35px;height:35px;">
+                <img src="assets/img/logot.png" alt="Логотип Т" style="width:35px;height:35px;">
             </div>
             <div class="receipt-date" id="receiptDate"></div>
             <div class="receipt-title-row">
                 <div class="receipt-title">Итого</div>
-                <div class="receipt-sum-big" id="receiptSumBig">44 ₽</div>
+                <div class="receipt-sum-big" id="receiptSumBig">0 ₽</div>
             </div>
-            <div class="receipt-row"><span class="row-title">Покупка</span><span class="row-value">По QR-коду</span></div>
-            <div class="receipt-row"><span class="row-title">Статус</span><span class="row-value">Успешно</span></div>
-            <div class="receipt-row"><span class="row-title">Сумма</span><span class="row-value" id="receiptSumSmall">44 ₽</span></div>
-            <div class="receipt-row"><span class="row-title">Магазин</span><span class="row-value" id="receiptStore">Оплата проезда на bilet.nspk.ru</span></div>
-            <div class="receipt-row"><span class="row-title">Счет списания</span><span class="row-value" id="receiptAccount">408178106000****2504</span></div>
-            <div class="receipt-row"><span class="row-title">Наименование ЮЛ или ИП</span><span class="row-value" id="receiptLegal">ООО "БЕНТОК-СМОЛЕНСК"</span></div>
-            <div class="receipt-row"><span class="row-title">Идентификатор операции</span><span class="row-value" id="receiptTransId">A53221215425581F00000100116</span></div>
-            <div class="receipt-row"><span class="row-title">СБП</span><span class="row-value" id="receiptSbp">30701</span></div>
+            <div id="receiptRows"></div>
             <div class="signature-block">
-                <img src="pech.png" alt="Подпись и печать" style="width:70%;margin-left:112px">
+                <img src="assets/img/pech.png" alt="Подпись и печать" style="width:70%;margin-left:112px">
             </div>
             <div class="final-footer">
-                <span id="receiptNumber">Квитанция № 1-111-184-502-464</span><br>
-                По вопросам зачисления обращайтесь к получателю<br>
+                <span id="receiptNumber">Квитанция №</span><br>
                 Служба поддержки <a href="mailto:fb@tbank.ru">fb@tbank.ru</a>
             </div>
         </div>
     </div>
 </div>
 
-<script src="script.js"></script>
+<script src="assets/js/script.js?v=3"></script>
 </body>
 </html>
