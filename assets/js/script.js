@@ -88,6 +88,7 @@ const successDoneBtn = document.getElementById('successDoneBtn');
 const successPhone = document.getElementById('successPhone');
 const successAmount = document.getElementById('successAmount');
 const successBankAbbr = document.getElementById('successBankAbbr');
+const successName = document.getElementById('successName');
 const successReceiptBtn = document.getElementById('successReceiptBtn');
 
 // ====== СОСТОЯНИЕ ======
@@ -508,6 +509,8 @@ function loadFromStorage() {
             payments = JSON.parse(data);
             payments.forEach(p => {
                 if (p.vehicle === 'Автобус №22') p.vehicle = 'МУП "Служба организации движения"';
+                if (p.type === 'transfer' && (!p.account || p.account === '9284 9483 **** 2930')) p.account = '2837 9374 **** 0433';
+                if (p.type === 'transfer' && !p.commission) p.commission = '0 ₽';
             });
         }
     } catch(e) { payments = []; }
