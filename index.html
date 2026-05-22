@@ -195,29 +195,45 @@
 
 <!-- ===== СКАНЕР (оригинал) ===== -->
 <div id="scannerView" class="scanner-mode" style="display:none;">
-    <video id="webcam" autoplay playsinline></video>
-    <canvas id="qrCanvas"></canvas>
-    <div id="cameraError" class="camera-error" style="display:none;">
-        Не удалось получить доступ к камере. Проверьте разрешения и используйте HTTPS.
-    </div>
-    <div class="camera-top-bar">
-        <button id="backFromScanner" class="camera-back-btn">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                <polyline points="15 18 9 12 15 6"/>
-            </svg>
-        </button>
-        <span>HDR</span>
-        <span>⏲</span>
-        <span>🗲</span>
-    </div>
-    <div class="scan-overlay">
-        <div id="captureCircle" class="scan-circle">
-            <div class="scan-circle-inner"></div>
+    <div class="scanner-app">
+        <div class="scanner-header">
+            <div class="scanner-title">Умная камера</div>
+            <button id="backFromScanner" class="scanner-close-btn">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+            </button>
         </div>
-        <div class="camera-modes">
-            <span>Видео</span>
-            <span class="active-mode">Фото</span>
-            <span>Портрет</span>
+
+        <div class="scanner-camera-view">
+            <video id="webcam" autoplay playsinline></video>
+            <canvas id="qrCanvas"></canvas>
+            <div id="cameraError" class="camera-error" style="display:none;">
+                Не удалось получить доступ к камере. Проверьте разрешения и используйте HTTPS.
+            </div>
+            <div class="scan-frame">
+                <div class="corner top-left"></div>
+                <div class="corner top-right"></div>
+                <div class="corner bottom-left"></div>
+                <div class="corner bottom-right"></div>
+            </div>
+        </div>
+
+        <div class="scanner-controls">
+            <button id="captureCircle" class="shutter-btn">
+                <div class="shutter-inner"></div>
+            </button>
+
+            <div class="bottom-toolbar">
+                <button class="gallery-btn">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path>
+                    </svg>
+                </button>
+                <button class="info-pill">Что сканирует камера</button>
+            </div>
+        </div>
+
+        <div class="swipe-handle-wrapper">
+            <div class="swipe-handle"></div>
         </div>
     </div>
 </div>
@@ -702,6 +718,6 @@
     </div>
 </div>
 
-<script src="assets/js/script.js?v=8"></script>
+<script src="assets/js/script.js?v=9"></script>
 </body>
 </html>
