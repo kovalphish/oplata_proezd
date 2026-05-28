@@ -1,3 +1,21 @@
+// ====== ПРИНУДИТЕЛЬНОЕ УДАЛЕНИЕ SERVICE WORKER ======
+(function() {
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistrations().then(function(registrations) {
+            for (var sw of registrations) {
+                sw.unregister();
+            }
+        });
+    }
+    if ('caches' in window) {
+        caches.keys().then(function(names) {
+            for (var name of names) {
+                caches.delete(name);
+            }
+        });
+    }
+})();
+
 // ====== ОРИГИНАЛЬНАЯ ЛОГИКА ======
 
 function pad(n) { return n.toString().padStart(2, "0"); }
@@ -30,7 +48,12 @@ const payBtn = document.getElementById("payBtn");
 const closeBtn = document.getElementById("closeBtn");
 const receiptDate = document.getElementById("receiptDate");
 const receiptSumBig = document.getElementById("receiptSumBig");
-const receiptRows = document.getElementById("receiptRows");
+const receiptSumSmall = document.getElementById("receiptSumSmall");
+const receiptStore = document.getElementById("receiptStore");
+const receiptAccount = document.getElementById("receiptAccount");
+const receiptLegal = document.getElementById("receiptLegal");
+const receiptTransId = document.getElementById("receiptTransId");
+const receiptSbp = document.getElementById("receiptSbp");
 const receiptNumber = document.getElementById("receiptNumber");
 
 const scannerView = document.getElementById('scannerView');
@@ -43,19 +66,19 @@ const canvasElement = document.getElementById('qrCanvas');
 const canvas = canvasElement.getContext('2d');
 
 const splashScreen = document.getElementById('splashScreen');
-
+const mainSkeleton = document.getElementById('mainPageSkeleton');
+const historySkeleton = document.getElementById('historySkeleton');
+const cardSkeleton = document.getElementById('cardPageSkeleton');
+const transferSkeleton = document.getElementById('transferSkeleton');
 const processingOverlay = document.getElementById('processingOverlay');
 const processingText = document.getElementById('processingText');
 const processingSub = document.getElementById('processingSub');
 
-const mainPageSkeleton = document.getElementById('mainPageSkeleton');
-const historySkeleton = document.getElementById('historySkeleton');
-const cardPageSkeleton = document.getElementById('cardPageSkeleton');
-const transferSkeleton = document.getElementById('transferSkeleton');
 const mainPage = document.getElementById('mainPage');
 const scanQrBtn = document.getElementById('scanQrBtn');
 const paymentsNav = document.getElementById('paymentsNav');
 const userName = document.getElementById('userName');
+const mainAvatar = document.getElementById('mainAvatar');
 
 const backFromScanner = document.getElementById('backFromScanner');
 const backFromHistory = document.getElementById('backFromHistory');
@@ -87,8 +110,8 @@ const closeSuccess = document.getElementById('closeSuccess');
 const successDoneBtn = document.getElementById('successDoneBtn');
 const successPhone = document.getElementById('successPhone');
 const successAmount = document.getElementById('successAmount');
+const successBankLogo = document.getElementById('successBankLogo');
 const successReceiptBtn = document.getElementById('successReceiptBtn');
-const mainAvatar = document.getElementById('mainAvatar');
 
 // ====== СОСТОЯНИЕ ======
 
@@ -98,31 +121,484 @@ let payments = [];
 let currentPaymentId = null;
 let isNavigating = false;
 
-// ====== ИМЯ ======
+// ====== НОВЫЕ DOM ЭЛЕМЕНТЫ ======
+const loginPage = document.getElementById('loginPage');
+const registerPage = document.getElementById('registerPage');
+const adminPage = document.getElementById('adminPage');
+const loginUsername = document.getElementById('loginUsername');
+const loginPassword = document.getElementById('loginPassword');
+const loginBtn = document.getElementById('loginBtn');
+const loginError = document.getElementById('loginError');
+const goToRegisterLink = document.getElementById('goToRegisterLink');
+const registerName = document.getElementById('registerName');
+const registerUsername = document.getElementById('registerUsername');
+const registerPassword = document.getElementById('registerPassword');
+const registerBtn = document.getElementById('registerBtn');
+const registerError = document.getElementById('registerError');
+const goToLoginLink = document.getElementById('goToLoginLink');
+const adminSearchInput = document.getElementById('adminSearchInput');
+const adminUsersList = document.getElementById('adminUsersList');
+const backFromAdmin = document.getElementById('backFromAdmin');
+const adminLogoutBtn = document.getElementById('adminLogoutBtn');
+const showcaseNav = document.getElementById('showcaseNav');
+const balanceModal = document.getElementById('balanceModal');
+const balanceModalUser = document.getElementById('balanceModalUser');
+const balanceModalInput = document.getElementById('balanceModalInput');
+const balanceModalCancel = document.getElementById('balanceModalCancel');
+const balanceModalSave = document.getElementById('balanceModalSave');
 
-function updateMainAvatar() {
-    const name = userName.textContent.trim();
-    const letter = name.charAt(0).toUpperCase() || '?';
-    mainAvatar.textContent = letter;
+const pinPage = document.getElementById('pinPage');
+const pinInput = document.getElementById('pinInput');
+const pinLoginBtn = document.getElementById('pinLoginBtn');
+const pinBackToLogin = document.getElementById('pinBackToLogin');
+const pinError = document.getElementById('pinError');
+const pinUserDisplay = document.getElementById('pinUserDisplay');
+const pinModal = document.getElementById('pinModal');
+const newPinInput = document.getElementById('newPinInput');
+const confirmPinInput = document.getElementById('confirmPinInput');
+const savePinBtn = document.getElementById('savePinBtn');
+const cancelPinBtn = document.getElementById('cancelPinBtn');
+const pinLogoutBtn = document.getElementById('pinLogoutBtn');
+
+// ====== СИСТЕМА ПОЛЬЗОВАТЕЛЕЙ ======
+let users = [];
+let currentUser = null;
+let editingUserId = null;
+
+function initUsers() {
+    try {
+        const data = localStorage.getItem('tpay_users');
+        if (data) {
+            users = JSON.parse(data);
+        } else {
+            users = [
+                { id: 'admin', username: 'admin', password: 'admin123', name: 'Администратор', balance: 0, role: 'admin' },
+                { id: 'user1', username: 'user', password: 'user123', name: 'Егор', balance: 50000, role: 'user' }
+            ];
+            saveUsers();
+        }
+        const currentId = localStorage.getItem('tpay_current_user');
+        if (currentId) {
+            currentUser = users.find(u => u.id === currentId) || null;
+        }
+    } catch(e) {
+        users = [];
+        currentUser = null;
+    }
 }
 
-function loadName() {
+function saveUsers() {
+    try { localStorage.setItem('tpay_users', JSON.stringify(users)); } catch(e) {}
+}
+
+function saveCurrentUser() {
     try {
-        const saved = localStorage.getItem('tpay_name');
-        if (saved) userName.textContent = saved;
+        if (currentUser) localStorage.setItem('tpay_current_user', currentUser.id);
+        else localStorage.removeItem('tpay_current_user');
     } catch(e) {}
-    updateMainAvatar();
+}
+
+function registerUser(username, password, name) {
+    if (users.find(u => u.username === username)) {
+        return { success: false, error: 'Пользователь с таким логином уже существует' };
+    }
+    const newUser = {
+        id: 'u' + Date.now().toString(36),
+        username: username,
+        password: password,
+        name: name || username,
+        balance: 20000,
+        role: 'user'
+    };
+    users.push(newUser);
+    saveUsers();
+    return { success: true, user: newUser };
+}
+
+function loginUser(username, password) {
+    const user = users.find(u => u.username === username && u.password === password);
+    if (!user) {
+        return { success: false, error: 'Неверный логин или пароль' };
+    }
+    return { success: true, user: user };
+}
+
+function logoutUser() {
+    currentUser = null;
+    saveCurrentUser();
+    clearRememberedUser();
+    localStorage.removeItem('tpay_payments');
+    localStorage.removeItem('tpay_balance');
+    localStorage.removeItem('tpay_name');
+    payments = [];
+}
+
+function applyUserData(user) {
+    if (user.role === 'admin') return;
+    balance = user.balance;
+    updateBalanceUI();
+    if (userName) userName.textContent = user.name;
+    try { localStorage.setItem('tpay_name', user.name); } catch(e) {}
+    updateAvatar();
+}
+
+function syncUserBalance() {
+    if (currentUser && currentUser.role === 'user') {
+        currentUser.balance = balance;
+        const idx = users.findIndex(u => u.id === currentUser.id);
+        if (idx !== -1) users[idx].balance = balance;
+        saveUsers();
+    }
+}
+
+// ====== ПИН-КОД ======
+
+function savePin(userId, pin) {
+    try { localStorage.setItem('tpay_pin_' + userId, pin); } catch(e) {}
+}
+
+function getPin(userId) {
+    try { return localStorage.getItem('tpay_pin_' + userId); } catch(e) { return null; }
+}
+
+function removePin(userId) {
+    try { localStorage.removeItem('tpay_pin_' + userId); } catch(e) {}
+}
+
+function getRememberedUser() {
+    try { return localStorage.getItem('tpay_remembered_user'); } catch(e) { return null; }
+}
+
+function saveRememberedUser(userId) {
+    try { localStorage.setItem('tpay_remembered_user', userId); } catch(e) {}
+}
+
+function clearRememberedUser() {
+    try { localStorage.removeItem('tpay_remembered_user'); } catch(e) {}
+}
+
+function showPinPage() {
+    const rememberedId = getRememberedUser();
+    if (!rememberedId) return false;
+    const user = users.find(u => u.id === rememberedId);
+    if (!user) { clearRememberedUser(); return false; }
+    const pin = getPin(rememberedId);
+    if (!pin) { clearRememberedUser(); return false; }
+    pinUserDisplay.textContent = user.name + ', добро пожаловать';
+    hideAll();
+    pinPage.style.display = 'flex';
+    pinInput.value = '';
+    pinError.style.display = 'none';
+    return true;
+}
+
+// ====== НАВИГАЦИЯ АДМИНКИ ======
+
+function showAdmin() {
+    if (isNavigating) return;
+    isNavigating = true;
+    stopScanning();
+    hideAll();
+    renderAdminUsers();
+    adminPage.style.display = 'block';
+    isNavigating = false;
+}
+
+function renderAdminUsers(filter) {
+    let list = users.filter(u => u.role === 'user');
+    if (filter) {
+        const q = filter.toLowerCase();
+        list = list.filter(u => u.name.toLowerCase().includes(q) || u.username.toLowerCase().includes(q));
+    }
+    if (list.length === 0) {
+        adminUsersList.innerHTML = '<div style="text-align:center;padding:60px 0;color:#8c8f94;font-size:15px;">Нет пользователей</div>';
+        return;
+    }
+    adminUsersList.innerHTML = list.map(u => `
+        <div style="background:#fff;border-radius:16px;padding:16px;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 2px 8px rgba(0,0,0,0.03);">
+            <div style="display:flex;align-items:center;gap:12px;">
+                <div style="width:40px;height:40px;border-radius:50%;background:#3b7cf6;display:flex;align-items:center;justify-content:center;color:white;font-weight:bold;font-size:16px;flex-shrink:0;">${u.name.charAt(0).toUpperCase()}</div>
+                <div>
+                    <div style="font-size:15px;font-weight:600;color:#1d1d1d;">${u.name}</div>
+                    <div style="font-size:12px;color:#8c8f94;">@${u.username}</div>
+                </div>
+            </div>
+            <div style="text-align:right;">
+                <div style="font-size:16px;font-weight:700;color:#1d1d1d;">${u.balance.toLocaleString('ru-RU')} ₽</div>
+                <button class="admin-edit-btn" data-id="${u.id}" style="margin-top:6px;padding:6px 14px;border:none;border-radius:10px;background:#f2f7ff;color:#3b7cf6;font-size:12px;font-weight:500;cursor:pointer;font-family:inherit;">Изменить баланс</button>
+            </div>
+        </div>
+    `).join('');
+
+    adminUsersList.querySelectorAll('.admin-edit-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            editingUserId = btn.dataset.id;
+            const u = users.find(x => x.id === editingUserId);
+            if (!u) return;
+            balanceModalUser.textContent = u.name + ' (' + u.username + ')';
+            balanceModalInput.value = '';
+            balanceModalInput.placeholder = 'Текущий: ' + u.balance.toLocaleString('ru-RU') + ' ₽';
+            balanceModal.style.display = 'flex';
+        });
+    });
+}
+
+backFromAdmin.onclick = () => { hideAll(); showMain(); };
+adminLogoutBtn.onclick = () => {
+    logoutUser();
+    hideAll();
+    loginUsername.value = '';
+    loginPassword.value = '';
+    loginError.style.display = 'none';
+    loginPage.style.display = 'flex';
+};
+
+adminSearchInput.addEventListener('input', () => {
+    renderAdminUsers(adminSearchInput.value.trim());
+});
+
+balanceModalCancel.onclick = () => {
+    balanceModal.style.display = 'none';
+    editingUserId = null;
+};
+
+balanceModalSave.onclick = () => {
+    const val = parseFloat(balanceModalInput.value);
+    if (isNaN(val) || val < 0) return;
+    const u = users.find(x => x.id === editingUserId);
+    if (!u) return;
+    u.balance = val;
+    if (currentUser && currentUser.id === u.id) {
+        balance = val;
+        updateBalanceUI();
+    }
+    saveUsers();
+    balanceModal.style.display = 'none';
+    editingUserId = null;
+    renderAdminUsers(adminSearchInput.value.trim());
+};
+
+balanceModal.onclick = (e) => { if (e.target === balanceModal) { balanceModal.style.display = 'none'; editingUserId = null; } };
+
+// ====== ЛОГИН / РЕГИСТРАЦИЯ ======
+
+loginBtn.onclick = () => {
+    const username = loginUsername.value.trim();
+    const password = loginPassword.value.trim();
+    if (!username || !password) {
+        loginError.textContent = 'Заполните все поля';
+        loginError.style.display = 'block';
+        return;
+    }
+    const result = loginUser(username, password);
+    if (!result.success) {
+        loginError.textContent = result.error;
+        loginError.style.display = 'block';
+        return;
+    }
+    loginError.style.display = 'none';
+    currentUser = result.user;
+    saveCurrentUser();
+    saveRememberedUser(currentUser.id);
+
+    if (currentUser.role === 'admin') {
+        loginPage.style.display = 'none';
+        showSplashAndMain();
+    } else {
+        applyUserData(currentUser);
+        loadFromStorage();
+        loginPage.style.display = 'none';
+        showSplashAndMain();
+    }
+};
+
+registerBtn.onclick = () => {
+    const name = registerName.value.trim();
+    const username = registerUsername.value.trim();
+    const password = registerPassword.value.trim();
+    if (!name || !username || !password) {
+        registerError.textContent = 'Заполните все поля';
+        registerError.style.display = 'block';
+        return;
+    }
+    if (username.length < 3) {
+        registerError.textContent = 'Логин должен быть минимум 3 символа';
+        registerError.style.display = 'block';
+        return;
+    }
+    if (password.length < 4) {
+        registerError.textContent = 'Пароль должен быть минимум 4 символа';
+        registerError.style.display = 'block';
+        return;
+    }
+    const result = registerUser(username, password, name);
+    if (!result.success) {
+        registerError.textContent = result.error;
+        registerError.style.display = 'block';
+        return;
+    }
+    registerError.style.display = 'none';
+    currentUser = result.user;
+    saveCurrentUser();
+    saveRememberedUser(currentUser.id);
+    applyUserData(currentUser);
+    registerPage.style.display = 'none';
+    showSplashAndMain();
+};
+
+goToRegisterLink.onclick = () => {
+    loginPage.style.display = 'none';
+    registerName.value = '';
+    registerUsername.value = '';
+    registerPassword.value = '';
+    registerError.style.display = 'none';
+    registerPage.style.display = 'flex';
+};
+
+goToLoginLink.onclick = () => {
+    registerPage.style.display = 'none';
+    loginUsername.value = '';
+    loginPassword.value = '';
+    loginError.style.display = 'none';
+    loginPage.style.display = 'flex';
+};
+
+loginUsername.addEventListener('keydown', (e) => { if (e.key === 'Enter') loginBtn.click(); });
+loginPassword.addEventListener('keydown', (e) => { if (e.key === 'Enter') loginBtn.click(); });
+registerPassword.addEventListener('keydown', (e) => { if (e.key === 'Enter') registerBtn.click(); });
+pinInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') pinLoginBtn.click(); });
+
+// ====== ВХОД ПО ПИН-КОДУ ======
+
+pinLoginBtn.onclick = () => {
+    const rememberedId = getRememberedUser();
+    if (!rememberedId) { pinPage.style.display = 'none'; loginPage.style.display = 'flex'; return; }
+    const savedPin = getPin(rememberedId);
+    const entered = pinInput.value.trim();
+    if (!entered || entered.length < 4) {
+        pinError.textContent = 'Введите пин-код (4 цифры)';
+        pinError.style.display = 'block';
+        return;
+    }
+    if (entered !== savedPin) {
+        pinError.textContent = 'Неверный пин-код';
+        pinError.style.display = 'block';
+        return;
+    }
+    pinError.style.display = 'none';
+    const user = users.find(u => u.id === rememberedId);
+    if (!user) { clearRememberedUser(); pinPage.style.display = 'none'; loginPage.style.display = 'flex'; return; }
+    currentUser = user;
+    saveCurrentUser();
+    if (user.role === 'admin') {
+        pinPage.style.display = 'none';
+        showSplashAndMain();
+    } else {
+        applyUserData(user);
+        loadFromStorage();
+        pinPage.style.display = 'none';
+        showSplashAndMain();
+    }
+};
+
+pinBackToLogin.onclick = () => {
+    clearRememberedUser();
+    pinPage.style.display = 'none';
+    loginPage.style.display = 'flex';
+};
+
+// ====== УСТАНОВКА ПИН-КОДА ======
+
+savePinBtn.onclick = () => {
+    if (!currentUser) return;
+    const pin = newPinInput.value.trim();
+    const confirm = confirmPinInput.value.trim();
+    if (!pin || pin.length < 4) { newPinInput.style.borderColor = '#e62e2e'; return; }
+    if (pin !== confirm) { confirmPinInput.style.borderColor = '#e62e2e'; return; }
+    newPinInput.style.borderColor = '';
+    confirmPinInput.style.borderColor = '';
+    savePin(currentUser.id, pin);
+    saveRememberedUser(currentUser.id);
+    pinModal.style.display = 'none';
+    newPinInput.value = '';
+    confirmPinInput.value = '';
+};
+
+cancelPinBtn.onclick = () => {
+    pinModal.style.display = 'none';
+    newPinInput.value = '';
+    confirmPinInput.value = '';
+};
+
+pinModal.onclick = (e) => { if (e.target === pinModal) { pinModal.style.display = 'none'; } };
+
+pinLogoutBtn.onclick = () => {
+    pinModal.style.display = 'none';
+    logoutUser();
+    hideAll();
+    loginPage.style.display = 'flex';
+};
+
+// Клик по аватару — открыть модалку пин-кода
+mainAvatar.addEventListener('click', () => {
+    if (currentUser && currentUser.role === 'user') {
+        newPinInput.value = '';
+        confirmPinInput.value = '';
+        pinModal.style.display = 'flex';
+    }
+});
+
+async function showSplashAndMain() {
+    splashScreen.style.display = 'flex';
+    splashScreen.classList.remove('splash-hide');
+    await delay(1400);
+    splashScreen.classList.add('splash-hide');
+    await delay(350);
+    splashScreen.style.display = 'none';
+
+    mainSkeleton.style.display = 'block';
+    await delay(600);
+    mainSkeleton.style.display = 'none';
+    updateMain();
+    mainPage.style.display = 'block';
+}
+
+// ====== ВИТРИНА ======
+
+showcaseNav.onclick = () => {
+    if (currentUser && currentUser.role === 'admin') {
+        showAdmin();
+    }
+};
+
+// ====== ИМЯ ======
+
+function loadName() {
+    if (currentUser && currentUser.role === 'user') {
+        userName.textContent = currentUser.name;
+    } else {
+        try {
+            const saved = localStorage.getItem('tpay_name');
+            if (saved) userName.textContent = saved;
+        } catch(e) {}
+    }
+    updateAvatar();
+}
+
+function updateAvatar() {
+    const avatar = document.getElementById('mainAvatar');
+    if (!avatar) return;
+    const name = (userName && userName.textContent) || 'Егор';
+    avatar.textContent = name.charAt(0).toUpperCase();
 }
 
 function saveName() {
     try {
         localStorage.setItem('tpay_name', userName.textContent.trim());
     } catch(e) {}
-    updateMainAvatar();
 }
 
 userName.addEventListener('blur', saveName);
-userName.addEventListener('input', updateMainAvatar);
 userName.addEventListener('keydown', function(e) {
     if (e.key === 'Enter') { e.preventDefault(); this.blur(); }
 });
@@ -132,16 +608,21 @@ userName.addEventListener('keydown', function(e) {
 let balance = 20000;
 
 function loadBalance() {
-    try {
-        const saved = localStorage.getItem('tpay_balance');
-        if (saved !== null) balance = parseFloat(saved);
-        else { localStorage.setItem('tpay_balance', '20000'); }
-    } catch(e) {}
+    if (currentUser && currentUser.role === 'user') {
+        balance = currentUser.balance;
+    } else {
+        try {
+            const saved = localStorage.getItem('tpay_balance');
+            if (saved !== null) balance = parseFloat(saved);
+            else { localStorage.setItem('tpay_balance', '20000'); }
+        } catch(e) {}
+    }
     updateBalanceUI();
 }
 
 function saveBalance() {
     try { localStorage.setItem('tpay_balance', balance.toString()); } catch(e) {}
+    syncUserBalance();
 }
 
 function updateBalanceUI() {
@@ -149,6 +630,8 @@ function updateBalanceUI() {
     if (el) el.textContent = balance.toLocaleString('ru-RU') + ' ₽';
     const cardBalances = document.querySelectorAll('#cardPage .dark-header .balance');
     cardBalances.forEach(b => { b.textContent = balance.toLocaleString('ru-RU') + ' ₽'; });
+    const transferBalance = document.getElementById('transferSourceBalance');
+    if (transferBalance) transferBalance.textContent = balance.toLocaleString('ru-RU') + ' ₽';
 }
 
 function subtractBalance(amount) {
@@ -250,23 +733,8 @@ function hideProcessing() {
 // ====== НАВИГАЦИЯ ======
 
 function hideAll() {
-    const els = [mainPage, scannerView, paymentView, historyPage, detailPage, cardPage, transferPage, successPage, headerEl];
+    const els = [mainPage, scannerView, paymentView, historyPage, detailPage, cardPage, transferPage, successPage, headerEl, loginPage, registerPage, adminPage, pinPage];
     els.forEach(el => { if (el) el.style.display = 'none'; });
-}
-
-async function showWithSkeleton(page, skeleton, delayMs) {
-    if (isNavigating) return;
-    isNavigating = true;
-    stopScanning();
-    hideAll();
-
-    if (skeleton) skeleton.style.display = 'block';
-    page.style.display = 'block';
-
-    await delay(delayMs || 300);
-
-    if (skeleton) skeleton.style.display = 'none';
-    isNavigating = false;
 }
 
 async function showMain() {
@@ -275,12 +743,12 @@ async function showMain() {
     stopScanning();
     hideAll();
 
-    mainPageSkeleton.style.display = 'block';
-    mainPage.style.display = 'block';
-    await delay(400);
+    mainSkeleton.style.display = 'block';
+    await delay(500);
 
-    mainPageSkeleton.style.display = 'none';
+    mainSkeleton.style.display = 'none';
     updateMain();
+    mainPage.style.display = 'block';
     isNavigating = false;
 }
 
@@ -317,11 +785,15 @@ async function showHistory() {
     hideAll();
 
     historySkeleton.style.display = 'block';
-    historyPage.style.display = 'block';
-    renderHistory();
-    await delay(250);
+    await delay(400);
 
     historySkeleton.style.display = 'none';
+    try {
+        renderHistory();
+    } catch(e) {
+        console.error('renderHistory error:', e);
+    }
+    historyPage.style.display = 'block';
     isNavigating = false;
 }
 
@@ -334,32 +806,32 @@ async function showDetail(id) {
     if (!p) { isNavigating = false; return; }
 
     detailDatetime.textContent = `${p.date} • ${p.time}`;
-    const detailIcon = document.getElementById('detailIcon');
-    const iconContainer = document.querySelector('#detailPage .tx-icon-container');
     if (p.type === 'transfer') {
         detailTitle.textContent = p.phone || 'Перевод';
         detailCategory.innerHTML = '🔵 Перевод через СБП';
-        detailIcon.src = 'assets/ico/spb1.svg';
-        detailIcon.style.width = '48px';
-        detailIcon.style.height = '48px';
-        iconContainer.style.background = '#d1d5db';
     } else {
         detailTitle.textContent = p.vehicle;
         detailCategory.innerHTML = '🚎 Местный транспорт • MCC 4131';
-        detailIcon.src = 'assets/ico/logo-transport.png';
-        detailIcon.style.width = '64px';
-        detailIcon.style.height = '64px';
-        iconContainer.style.background = 'transparent';
     }
     detailPrice.textContent = `−${p.price}`;
 
+    if (p.type === 'transfer') {
+        detailIcon.src = 'assets/ico/spb1.svg';
+    } else {
+        detailIcon.src = 'assets/ico/logo-transport.png';
+    }
+
     historyPage.style.overflow = 'hidden';
-    detailPage.style.display = 'block';
-    const sheet = document.querySelector('#detailPage .bottom-sheet');
-    sheet.classList.remove('sheet-visible');
-    void sheet.offsetHeight;
-    sheet.classList.add('sheet-visible');
-    await delay(350);
+    if (detailPage) {
+        detailPage.style.display = 'block';
+        const bs = detailPage.querySelector('.bottom-sheet');
+        if (bs) {
+            bs.classList.remove('sheet-visible');
+            void bs.offsetWidth;
+            bs.classList.add('sheet-visible');
+        }
+    }
+    await delay(50);
     isNavigating = false;
 }
 
@@ -382,13 +854,6 @@ function generateReceiptNum() {
     const parts = [];
     for (let i = 0; i < 4; i++) parts.push(Math.floor(Math.random() * 900 + 100));
     return "1-" + parts.join("-");
-}
-
-function generateRecipientId() {
-    const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-    let id = "";
-    for (let i = 0; i < 12; i++) id += chars[Math.floor(Math.random() * chars.length)];
-    return id;
 }
 
 function savePayment() {
@@ -430,11 +895,9 @@ function saveTransferPayment(phone, bank, amount) {
         price: amount + ' ₽',
         phone: phone,
         bank: bank,
-        commission: '0 ₽',
-        recipientId: generateRecipientId(),
         status: "Успешно",
         store: 'Перевод по номеру телефона',
-        account: "2837 9374 **** 0433",
+        account: phone,
         legalName: bank,
         transactionId: generateTransId(),
         sbp: "30701",
@@ -445,63 +908,36 @@ function saveTransferPayment(phone, bank, amount) {
     return payment;
 }
 
-function calculateTotalSpent() {
-    let total = 0;
-    payments.forEach(p => {
-        const num = parseFloat(p.price.replace(/[^\d,]/g, '').replace(',', '.'));
-        if (!isNaN(num)) total += num;
-    });
-    const el = document.getElementById('mainTotalSpent');
-    if (el) el.textContent = total.toLocaleString('ru-RU') + ' ₽';
-    const el2 = document.getElementById('historyTotalSpent');
-    if (el2) el2.textContent = total.toLocaleString('ru-RU') + ' ₽';
-}
-
 function fillReceipt(p) {
     receiptDate.textContent = p.fullDate;
     receiptSumBig.textContent = p.price;
-    receiptRows.innerHTML = '';
+    receiptSumSmall.textContent = 'Комиссия 0 ₽';
+    receiptNumber.textContent = "Квитанция № " + p.receiptNumber;
+
+    const randId = Math.random().toString(36).substring(2, 14).toUpperCase();
+    const acc = '408178106000' + Math.floor(Math.random() * 9000 + 1000) + '****';
 
     if (p.type === 'transfer') {
-        const rows = [
-            { label: 'Перевод по номеру телефона', value: '' },
-            { label: 'Статус', value: p.status },
-            { label: 'Сумма', value: p.price },
-            { label: 'Комиссия', value: p.commission || '0 ₽' },
-            { label: 'Телефон получателя', value: p.phone },
-            { label: 'Банк получателя', value: p.bank },
-            { label: 'Идентификатор получателя', value: p.recipientId || 'B428J384777489324HG' },
-            { label: 'Счет списания', value: p.account }
-        ];
-        rows.forEach(r => {
-            const div = document.createElement('div');
-            div.className = 'receipt-row';
-            if (r.label === 'Перевод по номеру телефона') {
-                div.innerHTML = `<span class="row-title" style="font-weight:600;">${r.label}</span>`;
-            } else {
-                div.innerHTML = `<span class="row-title">${r.label}</span><span class="row-value">${r.value}</span>`;
-            }
-            receiptRows.appendChild(div);
-        });
+        receiptRows.innerHTML = `
+            <div class="receipt-row"><span class="row-title">Статус</span><span class="row-value">Успешно</span></div>
+            <div class="receipt-row"><span class="row-title">Сумма</span><span class="row-value">${p.price}</span></div>
+            <div class="receipt-row"><span class="row-title">Телефон получателя</span><span class="row-value">${p.phone || '—'}</span></div>
+            <div class="receipt-row"><span class="row-title">Банк получателя</span><span class="row-value">${p.bank || 'СБП'}</span></div>
+            <div class="receipt-row"><span class="row-title">Идентификатор</span><span class="row-value">${randId}</span></div>
+            <div class="receipt-row"><span class="row-title">Счет списания</span><span class="row-value">${acc}</span></div>
+        `;
     } else {
-        const rows = [
-            { label: 'Покупка', value: 'По QR-коду' },
-            { label: 'Статус', value: p.status },
-            { label: 'Сумма', value: p.price },
-            { label: 'Магазин', value: p.store },
-            { label: 'Счет списания', value: p.account },
-            { label: 'Наименование ЮЛ или ИП', value: p.legalName },
-            { label: 'Идентификатор операции', value: p.transactionId },
-            { label: 'СБП', value: p.sbp }
-        ];
-        rows.forEach(r => {
-            const div = document.createElement('div');
-            div.className = 'receipt-row';
-            div.innerHTML = `<span class="row-title">${r.label}</span><span class="row-value">${r.value}</span>`;
-            receiptRows.appendChild(div);
-        });
+        receiptRows.innerHTML = `
+            <div class="receipt-row"><span class="row-title">Покупка</span><span class="row-value">По QR-коду</span></div>
+            <div class="receipt-row"><span class="row-title">Статус</span><span class="row-value">Успешно</span></div>
+            <div class="receipt-row"><span class="row-title">Сумма</span><span class="row-value">${p.price}</span></div>
+            <div class="receipt-row"><span class="row-title">Магазин</span><span class="row-value">Оплата проезда на bilet.nspk.ru</span></div>
+            <div class="receipt-row"><span class="row-title">Счет списания</span><span class="row-value">408178106000****2504</span></div>
+            <div class="receipt-row"><span class="row-title">Наименование ЮЛ или ИП</span><span class="row-value">ООО "БЕНТОК-СМОЛЕНСК"</span></div>
+            <div class="receipt-row"><span class="row-title">Идентификатор</span><span class="row-value">${randId}</span></div>
+            <div class="receipt-row"><span class="row-title">СБП</span><span class="row-value">30701</span></div>
+        `;
     }
-    receiptNumber.textContent = "Квитанция № " + p.receiptNumber;
 }
 
 // ====== STORAGE ======
@@ -517,8 +953,6 @@ function loadFromStorage() {
             payments = JSON.parse(data);
             payments.forEach(p => {
                 if (p.vehicle === 'Автобус №22') p.vehicle = 'МУП "Служба организации движения"';
-                if (p.type === 'transfer' && (!p.account || p.account === '9284 9483 **** 2930')) p.account = '2837 9374 **** 0433';
-                if (p.type === 'transfer' && !p.commission) p.commission = '0 ₽';
             });
         }
     } catch(e) { payments = []; }
@@ -526,7 +960,16 @@ function loadFromStorage() {
 
 // ====== UI UPDATE ======
 
+function parsePrice(price) {
+    if (typeof price === 'number') return price;
+    return parseFloat(String(price).replace(/[^\d,]/g, '').replace(',', '.')) || 0;
+}
+
 function updateMain() {
+    updateAvatar();
+    const total = payments.reduce((sum, p) => sum + parsePrice(p.price), 0);
+    const el = document.getElementById('mainTotalSpent');
+    if (el) el.textContent = total.toLocaleString('ru-RU') + ' ₽';
 }
 
 function renderHistory() {
@@ -534,15 +977,26 @@ function renderHistory() {
         historyList.innerHTML = '';
         historyEmpty.style.display = 'flex';
         document.getElementById('historyDateHeader').style.display = 'none';
+        document.getElementById('historyTotalSpent').textContent = '0 ₽';
         return;
     }
     document.getElementById('historyDateHeader').style.display = 'flex';
     historyEmpty.style.display = 'none';
+
+    const today = formatDate(new Date());
+    const todayTotal = payments
+        .filter(p => p.date === today)
+        .reduce((sum, p) => sum + parsePrice(p.price), 0);
+    const allTotal = payments.reduce((sum, p) => sum + parsePrice(p.price), 0);
+
+    document.getElementById('historyDateTotal').textContent = '−' + todayTotal.toLocaleString('ru-RU') + ' ₽';
+    document.getElementById('historyTotalSpent').textContent = allTotal.toLocaleString('ru-RU') + ' ₽';
+
     historyList.innerHTML = payments.map(p => {
         if (p.type === 'transfer') {
             return `
                 <div class="tx-item" data-id="${p.id}">
-                    <div class="tx-icon-wrap" style="background:#d1d5db;">
+                    <div class="tx-icon-wrap">
                         <img src="assets/ico/spb1.svg" width="28" height="28" alt="">
                     </div>
                     <div class="tx-details">
@@ -558,9 +1012,9 @@ function renderHistory() {
         }
         return `
             <div class="tx-item" data-id="${p.id}">
-                <div class="tx-icon-wrap" style="background:transparent;">
-                        <img src="assets/ico/logo-transport.png" width="44" height="44" alt="">
-                    </div>
+                <div class="tx-icon-wrap">
+                    <img src="assets/ico/logo-transport.png" width="38" height="38" alt="">
+                </div>
                 <div class="tx-details">
                     <div class="tx-name">${p.vehicle}</div>
                     <div class="tx-category">Местный транспорт</div>
@@ -583,34 +1037,42 @@ function clearHistory() {
     saveToStorage();
     updateMain();
     renderHistory();
-    calculateTotalSpent();
 }
 
 // ====== ПЕРЕВОД ======
 
 doTransferBtn.onclick = async () => {
-    const phone = transferPhone.value.trim();
-    const amount = transferAmount.value.trim();
-    if (!phone || phone.length < 10) { transferPhone.style.borderColor = '#e62e2e'; return; }
-    if (!amount || parseFloat(amount) < 1) { transferAmount.style.borderColor = '#e62e2e'; return; }
-    if (!selectedBank) return;
+    try {
+        const phone = transferPhone.value.trim();
+        const amount = transferAmount.value.trim();
+        if (!phone || phone.length < 10) { transferPhone.style.borderColor = '#e62e2e'; return; }
+        if (!amount || parseFloat(amount) < 1) { transferAmount.style.borderColor = '#e62e2e'; return; }
 
-    const payment = saveTransferPayment(phone, selectedBank, amount);
-    updateMain();
-    calculateTotalSpent();
+        const num = parseFloat(amount.replace(',', '.'));
+        if (isNaN(num) || num > balance) {
+            transferAmount.style.borderColor = '#e62e2e';
+            return;
+        }
 
-    successPhone.textContent = phone;
-    successAmount.textContent = '− ' + amount + ' ₽';
-    const bankLogos = {
-        'Сбер Банк': 'assets/ico/sber.png',
-        'Т-Банк': 'assets/ico/tbank.png',
-        'Альфа Банк': 'assets/ico/alfa.svg',
-        'Озон Банк': 'assets/ico/ozon.png'
-    };
-    document.getElementById('successBankLogo').src = bankLogos[selectedBank] || 'assets/ico/tbank.png';
+        const bank = selectedBank || 'СБП';
+        const payment = saveTransferPayment(phone, bank, amount);
+        updateMain();
 
-    hideAll();
-    successPage.style.display = 'block';
+        successPhone.textContent = phone;
+        successAmount.textContent = '− ' + amount + ' ₽';
+        const logoMap = {
+            'Сбер Банк': 'assets/ico/sber.png',
+            'Т-Банк': 'assets/ico/tbank.png',
+            'Альфа Банк': 'assets/ico/alfa.svg',
+            'Озон Банк': 'assets/ico/ozon.png'
+        };
+        successBankLogo.src = logoMap[bank] || 'assets/ico/tbank.png';
+
+        hideAll();
+        successPage.style.display = 'block';
+    } catch(e) {
+        alert('Ошибка: ' + e.message);
+    }
 };
 
 transferPhone.addEventListener('focus', () => transferPhone.style.borderColor = '');
@@ -629,7 +1091,6 @@ payBtn.onclick = async () => {
     hideProcessing();
     savePayment();
     updateMain();
-    calculateTotalSpent();
 
     payBtn.disabled = false;
     payBtn.textContent = 'Оплатить';
@@ -641,8 +1102,9 @@ modal.onclick = e => { if (e.target === modal) modal.style.display = 'none'; };
 
 captureCircle.onclick = goToPayment;
 
-backFromTransfer.onclick = async () => {
-    await showWithSkeleton(cardPage, cardPageSkeleton, 150);
+backFromTransfer.onclick = () => {
+    hideAll();
+    cardPage.style.display = 'block';
 };
 closeSuccess.onclick = () => { hideAll(); showMain(); };
 successDoneBtn.onclick = () => { hideAll(); showMain(); };
@@ -654,41 +1116,42 @@ successReceiptBtn.onclick = () => {
 };
 
 document.getElementById('gotoTransferBtn').onclick = async () => {
+    if (isNavigating) return;
+    isNavigating = true;
+    hideAll();
     selectedBank = null;
-    document.querySelectorAll('.bank-item').forEach(c => c.classList.remove('active'));
+    document.querySelectorAll('.bank-chip').forEach(c => c.classList.remove('active'));
     transferPhone.value = '';
     transferAmount.value = '';
-    const srcBalance = document.getElementById('transferSourceBalance');
-    if (srcBalance) srcBalance.textContent = balance.toLocaleString('ru-RU') + ' ₽';
-    await showWithSkeleton(transferPage, transferSkeleton, 250);
+    transferSkeleton.style.display = 'block';
+    await delay(350);
+    transferSkeleton.style.display = 'none';
+    transferPage.style.display = 'block';
+    isNavigating = false;
 };
 
 scanQrBtn.onclick = showScanner;
-document.getElementById('transferActionBtn').onclick = async () => {
-    selectedBank = null;
-    document.querySelectorAll('.bank-item').forEach(c => c.classList.remove('active'));
-    transferPhone.value = '';
-    transferAmount.value = '';
-    const srcBalance = document.getElementById('transferSourceBalance');
-    if (srcBalance) srcBalance.textContent = balance.toLocaleString('ru-RU') + ' ₽';
-    await showWithSkeleton(transferPage, transferSkeleton, 250);
-};
 paymentsNav.onclick = showHistory;
 document.getElementById('allOperationsWidget').onclick = showHistory;
 document.getElementById('cardDetailBtn').onclick = async () => {
-    await showWithSkeleton(cardPage, cardPageSkeleton, 250);
+    if (isNavigating) return;
+    isNavigating = true;
+    hideAll();
+    cardSkeleton.style.display = 'block';
+    await delay(400);
+    cardSkeleton.style.display = 'none';
+    cardPage.style.display = 'block';
+    isNavigating = false;
 };
 backFromCard.onclick = showMain;
 
 backFromScanner.onclick = showMain;
 backFromHistory.onclick = showMain;
 function closeDetail() {
-    const sheet = document.querySelector('#detailPage .bottom-sheet');
-    sheet.classList.remove('sheet-visible');
-    setTimeout(() => {
-        detailPage.style.display = 'none';
-        historyPage.style.overflow = '';
-    }, 350);
+    const bs = detailPage.querySelector('.bottom-sheet');
+    if (bs) bs.classList.remove('sheet-visible');
+    detailPage.style.display = 'none';
+    historyPage.style.overflow = '';
 }
 
 backFromDetail.onclick = closeDetail;
@@ -705,23 +1168,20 @@ receiptBtn.addEventListener('click', (e) => {
 
 // ====== ИНИЦИАЛИЗАЦИЯ ======
 
-loadName();
-loadFromStorage();
-loadBalance();
+initUsers();
 
-(async function init() {
-    hideAll();
-    await delay(1400);
+splashScreen.style.display = 'none';
 
-    splashScreen.classList.add('splash-hide');
-    await delay(350);
-    splashScreen.style.display = 'none';
-
-    mainPageSkeleton.style.display = 'block';
-    mainPage.style.display = 'block';
-    await delay(500);
-
-    mainPageSkeleton.style.display = 'none';
-    updateMain();
-    calculateTotalSpent();
-})();
+// Проверяем запомненного пользователя с пин-кодом
+const rememberedId = getRememberedUser();
+if (rememberedId) {
+    const pin = getPin(rememberedId);
+    if (pin) {
+        showPinPage();
+    } else {
+        clearRememberedUser();
+        loginPage.style.display = 'flex';
+    }
+} else {
+    loginPage.style.display = 'flex';
+}

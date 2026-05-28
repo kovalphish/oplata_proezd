@@ -352,6 +352,7 @@ body {
 
 .receipt-title { font-size: 26px; font-weight: bold; }
 .receipt-sum-big { font-size: 26px; font-weight: bold; }
+.receipt-sum-small { font-size: 13px; color: #999; text-align: center; margin-top: 10px; }
 
 .receipt-row {
     display: flex;
@@ -1016,19 +1017,12 @@ body {
 #historyPage .tx-icon-wrap {
     width: 44px;
     height: 44px;
-    border-radius: 50%;
     margin-right: 12px;
     flex-shrink: 0;
     display: flex;
     justify-content: center;
     align-items: center;
-    overflow: hidden;
-    background: #444a45;
 }
-
-#historyPage .tx-icon-wrap.red { background: #e31e24; }
-
-#historyPage .tx-icon-wrap.green { background: #009900; }
 
 #historyPage .tx-details {
     flex-grow: 1;
@@ -1308,7 +1302,7 @@ body {
     padding-bottom: 20px;
     overflow-y: auto;
     transform: translateY(100%);
-    transition: transform 0.35s cubic-bezier(0.2, 0, 0, 1);
+    transition: transform 0.6s cubic-bezier(0.2, 0, 0, 1);
     will-change: transform;
 }
 
@@ -1369,8 +1363,8 @@ body {
 }
 
 #detailPage .detail-icon-img {
-    width: 48px;
-    height: 48px;
+    width: 58px;
+    height: 58px;
     object-fit: contain;
 }
 
@@ -2413,4 +2407,26 @@ body {
 @keyframes splashOut {
     from { opacity: 1; }
     to { opacity: 0; }
+}
+
+/* ============ ПИН-КОД ============ */
+
+#pinPage input:focus {
+    border-color: #3b7cf6 !important;
+}
+
+#pinPage input::placeholder {
+    color: #9ea4ab;
+}
+
+#pinError, #loginError, #registerError {
+    animation: fadeIn 0.2s ease;
+}
+
+#pinModal input:focus {
+    border-color: #3b7cf6 !important;
+}
+
+#pinModal input::placeholder {
+    color: #9ea4ab;
 }

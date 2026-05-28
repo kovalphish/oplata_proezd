@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-    <title>Т-Банк</title>
+    <title>Т-Банк v14</title>
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="Т-Банк">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -15,9 +15,7 @@
     <link rel="stylesheet" href="assets/css/styles.css">
     <script src="https://cdn.jsdelivr.net/npm/jsqr@1.0.4/dist/jsQR.min.js"></script>
     <script>
-    if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('sw.js');
-    }
+    // service worker отключён для отладки
     </script>
 </head>
 <body>
@@ -185,7 +183,7 @@
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="#a6abb4"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zM6 9h12v2H6V9zm8 5H6v-2h8v2zm4-6H6V6h12v2z"/></svg>
                 <span>Чат</span>
             </div>
-            <div class="nav-item">
+            <div class="nav-item" id="showcaseNav">
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="#a6abb4"><rect x="3" y="3" width="8" height="8" rx="2"/><rect x="13" y="3" width="8" height="8" rx="2"/><rect x="3" y="13" width="8" height="8" rx="2"/><rect x="13" y="13" width="8" height="8" rx="2"/></svg>
                 <span>Витрина</span>
             </div>
@@ -425,6 +423,24 @@
             </div>
 
         </div>
+    </div>
+</div>
+
+<!-- ===== АДМИН-ПАНЕЛЬ (ВИТРИНА) ===== -->
+<div id="adminPage" class="page" style="display:none;">
+    <div class="app" style="background:#f7f8f9;">
+        <header class="top-nav">
+            <button id="backFromAdmin" class="back-btn">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+            </button>
+            <h1 class="page-title">Админ-панель</h1>
+            <button id="adminLogoutBtn" class="stats-btn" style="color:#e62e2e;font-size:13px;font-weight:500;background:none;border:none;cursor:pointer;">Выйти</button>
+        </header>
+        <div class="search-bar" style="margin:0 20px 16px;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#9ea4ab" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+            <input type="text" id="adminSearchInput" placeholder="Поиск пользователей">
+        </div>
+        <div id="adminUsersList" style="flex:1;overflow-y:auto;padding:0 20px 20px;"></div>
     </div>
 </div>
 
@@ -707,6 +723,7 @@
                 <div class="receipt-sum-big" id="receiptSumBig">0 ₽</div>
             </div>
             <div id="receiptRows"></div>
+            <div class="receipt-sum-small" id="receiptSumSmall"></div>
             <div class="signature-block">
                 <img src="assets/img/pech.png" alt="Подпись и печать" style="width:70%;margin-left:112px">
             </div>
@@ -718,6 +735,93 @@
     </div>
 </div>
 
-<script src="assets/js/script.js?v=11"></script>
+<!-- ===== МОДАЛКА ИЗМЕНЕНИЯ БАЛАНСА (АДМИН) ===== -->
+<div id="balanceModal" class="modal" style="display:none;">
+    <div class="modal-content" style="justify-content:center;align-items:center;">
+        <div style="background:#fff;border-radius:24px;padding:32px 24px;max-width:340px;width:90%;text-align:center;">
+            <h3 style="margin:0 0 8px;font-size:20px;color:#1d1d1d;">Изменить баланс</h3>
+            <p id="balanceModalUser" style="font-size:14px;color:#8c8f94;margin:0 0 20px;"></p>
+            <input type="number" id="balanceModalInput" placeholder="Введите сумму" style="width:100%;padding:14px 16px;border:2px solid #eef0f2;border-radius:14px;font-size:18px;outline:none;box-sizing:border-box;margin-bottom:16px;">
+            <div style="display:flex;gap:12px;">
+                <button id="balanceModalCancel" style="flex:1;padding:14px;border:2px solid #eef0f2;border-radius:14px;font-size:15px;font-weight:600;background:#fff;color:#1d1d1d;cursor:pointer;">Отмена</button>
+                <button id="balanceModalSave" style="flex:1;padding:14px;border:none;border-radius:14px;font-size:15px;font-weight:600;background:#3b7cf6;color:#fff;cursor:pointer;">Сохранить</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ===== ЭКРАН ВХОДА ===== -->
+<div id="loginPage" class="page" style="display:none;align-items:center;justify-content:center;">
+    <div style="max-width:340px;width:90%;text-align:center;">
+        <svg width="48" height="56" viewBox="0 0 29 34" fill="none" style="margin-bottom:24px;">
+            <path fill="#FFDD2D" d="M0 3h29v14.58c0 3.74-2 7.2-5.23 9.07L14.5 32l-9.27-5.35A10.47 10.47 0 0 1 0 17.58V3Z"/>
+            <path fill="#333" d="M8 11v4.56a4.04 4.04 0 0 1 3.02-1.18h1.4v5.3c0 1.4-.39 2.64-.95 3.32h6.06a5.44 5.44 0 0 1-.94-3.32v-5.3h1.4c1.27 0 2.4.47 3.01 1.18V11H8Z"/>
+        </svg>
+        <h1 style="font-size:24px;font-weight:700;color:#1d1d1d;margin:0 0 8px;">Т-Банк</h1>
+        <p style="font-size:14px;color:#8c8f94;margin:0 0 32px;">Оплата проезда по QR-коду</p>
+        <input type="text" id="loginUsername" placeholder="Логин" style="width:100%;padding:14px 16px;border:2px solid #eef0f2;border-radius:14px;font-size:16px;outline:none;box-sizing:border-box;margin-bottom:12px;color:#1d1d1d;">
+        <input type="password" id="loginPassword" placeholder="Пароль" style="width:100%;padding:14px 16px;border:2px solid #eef0f2;border-radius:14px;font-size:16px;outline:none;box-sizing:border-box;margin-bottom:20px;color:#1d1d1d;">
+        <button id="loginBtn" style="width:100%;padding:16px;border:none;border-radius:14px;font-size:16px;font-weight:600;background:#FFDD2D;color:#1d1d1d;cursor:pointer;font-family:inherit;">Войти</button>
+        <p style="font-size:14px;color:#8c8f94;margin-top:20px;">Нет аккаунта? <a id="goToRegisterLink" style="color:#3b7cf6;text-decoration:none;cursor:pointer;font-weight:500;">Зарегистрироваться</a></p>
+        <div id="loginError" style="color:#e62e2e;font-size:13px;margin-top:12px;display:none;"></div>
+    </div>
+</div>
+
+<!-- ===== ЭКРАН РЕГИСТРАЦИИ ===== -->
+<div id="registerPage" class="page" style="display:none;align-items:center;justify-content:center;">
+    <div style="max-width:340px;width:90%;text-align:center;">
+        <svg width="48" height="56" viewBox="0 0 29 34" fill="none" style="margin-bottom:24px;">
+            <path fill="#FFDD2D" d="M0 3h29v14.58c0 3.74-2 7.2-5.23 9.07L14.5 32l-9.27-5.35A10.47 10.47 0 0 1 0 17.58V3Z"/>
+            <path fill="#333" d="M8 11v4.56a4.04 4.04 0 0 1 3.02-1.18h1.4v5.3c0 1.4-.39 2.64-.95 3.32h6.06a5.44 5.44 0 0 1-.94-3.32v-5.3h1.4c1.27 0 2.4.47 3.01 1.18V11H8Z"/>
+        </svg>
+        <h1 style="font-size:24px;font-weight:700;color:#1d1d1d;margin:0 0 8px;">Регистрация</h1>
+        <p style="font-size:14px;color:#8c8f94;margin:0 0 32px;">Создайте аккаунт для оплаты проезда</p>
+        <input type="text" id="registerName" placeholder="Имя" style="width:100%;padding:14px 16px;border:2px solid #eef0f2;border-radius:14px;font-size:16px;outline:none;box-sizing:border-box;margin-bottom:12px;color:#1d1d1d;">
+        <input type="text" id="registerUsername" placeholder="Логин" style="width:100%;padding:14px 16px;border:2px solid #eef0f2;border-radius:14px;font-size:16px;outline:none;box-sizing:border-box;margin-bottom:12px;color:#1d1d1d;">
+        <input type="password" id="registerPassword" placeholder="Пароль" style="width:100%;padding:14px 16px;border:2px solid #eef0f2;border-radius:14px;font-size:16px;outline:none;box-sizing:border-box;margin-bottom:20px;color:#1d1d1d;">
+        <button id="registerBtn" style="width:100%;padding:16px;border:none;border-radius:14px;font-size:16px;font-weight:600;background:#FFDD2D;color:#1d1d1d;cursor:pointer;font-family:inherit;">Зарегистрироваться</button>
+        <p style="font-size:14px;color:#8c8f94;margin-top:20px;">Уже есть аккаунт? <a id="goToLoginLink" style="color:#3b7cf6;text-decoration:none;cursor:pointer;font-weight:500;">Войти</a></p>
+        <div id="registerError" style="color:#e62e2e;font-size:13px;margin-top:12px;display:none;"></div>
+    </div>
+</div>
+
+<!-- ===== ЭКРАН ВХОДА ПО ПИН-КОДУ ===== -->
+<div id="pinPage" class="page" style="display:none;align-items:center;justify-content:center;">
+    <div style="max-width:340px;width:90%;text-align:center;">
+        <svg width="48" height="56" viewBox="0 0 29 34" fill="none" style="margin-bottom:24px;">
+            <path fill="#FFDD2D" d="M0 3h29v14.58c0 3.74-2 7.2-5.23 9.07L14.5 32l-9.27-5.35A10.47 10.47 0 0 1 0 17.58V3Z"/>
+            <path fill="#333" d="M8 11v4.56a4.04 4.04 0 0 1 3.02-1.18h1.4v5.3c0 1.4-.39 2.64-.95 3.32h6.06a5.44 5.44 0 0 1-.94-3.32v-5.3h1.4c1.27 0 2.4.47 3.01 1.18V11H8Z"/>
+        </svg>
+        <h1 style="font-size:24px;font-weight:700;color:#1d1d1d;margin:0 0 4px;">Т-Банк</h1>
+        <p style="font-size:14px;color:#8c8f94;margin:0 0 8px;">Введите пин-код</p>
+        <p id="pinUserDisplay" style="font-size:13px;color:#3b7cf6;margin:0 0 24px;font-weight:500;"></p>
+        <input type="password" id="pinInput" placeholder="Пин-код" maxlength="4" inputmode="numeric" pattern="[0-9]*" style="width:100%;padding:14px 16px;border:2px solid #eef0f2;border-radius:14px;font-size:16px;outline:none;box-sizing:border-box;margin-bottom:20px;color:#1d1d1d;text-align:center;letter-spacing:8px;">
+        <button id="pinLoginBtn" style="width:100%;padding:16px;border:none;border-radius:14px;font-size:16px;font-weight:600;background:#FFDD2D;color:#1d1d1d;cursor:pointer;font-family:inherit;">Войти</button>
+        <p style="font-size:14px;color:#8c8f94;margin-top:20px;"><a id="pinBackToLogin" style="color:#3b7cf6;text-decoration:none;cursor:pointer;font-weight:500;">Войти по паролю</a></p>
+        <div id="pinError" style="color:#e62e2e;font-size:13px;margin-top:12px;display:none;"></div>
+    </div>
+</div>
+
+<!-- ===== МОДАЛКА УСТАНОВКИ ПИН-КОДА ===== -->
+<div id="pinModal" class="modal" style="display:none;">
+    <div class="modal-content" style="justify-content:center;align-items:center;">
+        <div style="background:#fff;border-radius:24px;padding:32px 24px;max-width:340px;width:90%;text-align:center;">
+            <svg width="40" height="40" viewBox="0 0 29 34" fill="none" style="margin-bottom:16px;">
+                <path fill="#FFDD2D" d="M0 3h29v14.58c0 3.74-2 7.2-5.23 9.07L14.5 32l-9.27-5.35A10.47 10.47 0 0 1 0 17.58V3Z"/>
+                <path fill="#333" d="M8 11v4.56a4.04 4.04 0 0 1 3.02-1.18h1.4v5.3c0 1.4-.39 2.64-.95 3.32h6.06a5.44 5.44 0 0 1-.94-3.32v-5.3h1.4c1.27 0 2.4.47 3.01 1.18V11H8Z"/>
+            </svg>
+            <h3 style="margin:0 0 8px;font-size:20px;color:#1d1d1d;">Пин-код</h3>
+            <p style="font-size:14px;color:#8c8f94;margin:0 0 24px;">Придумайте пин-код (4 цифры) для быстрого входа</p>
+            <input type="password" id="newPinInput" placeholder="Новый пин-код" maxlength="4" inputmode="numeric" pattern="[0-9]*" style="width:100%;padding:14px 16px;border:2px solid #eef0f2;border-radius:14px;font-size:16px;outline:none;box-sizing:border-box;margin-bottom:12px;color:#1d1d1d;text-align:center;letter-spacing:8px;">
+            <input type="password" id="confirmPinInput" placeholder="Повторите пин-код" maxlength="4" inputmode="numeric" pattern="[0-9]*" style="width:100%;padding:14px 16px;border:2px solid #eef0f2;border-radius:14px;font-size:16px;outline:none;box-sizing:border-box;margin-bottom:20px;color:#1d1d1d;text-align:center;letter-spacing:8px;">
+            <button id="savePinBtn" style="width:100%;padding:16px;border:none;border-radius:14px;font-size:16px;font-weight:600;background:#FFDD2D;color:#1d1d1d;cursor:pointer;font-family:inherit;margin-bottom:8px;">Сохранить</button>
+            <button id="cancelPinBtn" style="width:100%;padding:12px;border:none;border-radius:14px;font-size:14px;background:transparent;color:#8c8f94;cursor:pointer;font-family:inherit;">Отмена</button>
+            <div style="border-top:1px solid #eef0f2;margin:16px 0 8px;"></div>
+            <button id="pinLogoutBtn" style="width:100%;padding:12px;border:none;border-radius:14px;font-size:14px;background:transparent;color:#e62e2e;cursor:pointer;font-family:inherit;font-weight:500;">Выйти из аккаунта</button>
+        </div>
+    </div>
+</div>
+
+<script src="assets/js/script.js?v=20"></script>
 </body>
 </html>
