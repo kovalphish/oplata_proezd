@@ -621,6 +621,15 @@ pinBackToLogin.onclick = () => {
 
 // ====== УСТАНОВКА ПИН-КОДА ======
 
+function closePinModal() {
+    pinModal.classList.remove('modal-open');
+    setTimeout(() => {
+        pinModal.style.display = 'none';
+        newPinInput.value = '';
+        confirmPinInput.value = '';
+    }, 300);
+}
+
 savePinBtn.onclick = () => {
     if (!currentUser) return;
     const pin = newPinInput.value.trim();
@@ -631,21 +640,15 @@ savePinBtn.onclick = () => {
     confirmPinInput.style.borderColor = '';
     savePin(currentUser.username, pin);
     saveRememberedUser(currentUser.username);
-    pinModal.style.display = 'none';
-    newPinInput.value = '';
-    confirmPinInput.value = '';
+    closePinModal();
 };
 
-cancelPinBtn.onclick = () => {
-    pinModal.style.display = 'none';
-    newPinInput.value = '';
-    confirmPinInput.value = '';
-};
+cancelPinBtn.onclick = closePinModal;
 
-pinModal.onclick = (e) => { if (e.target === pinModal) { pinModal.style.display = 'none'; } };
+pinModal.onclick = (e) => { if (e.target === pinModal) closePinModal(); };
 
 pinLogoutBtn.onclick = () => {
-    pinModal.style.display = 'none';
+    closePinModal();
     logoutUser();
     hideAll();
     loginPage.style.display = 'flex';
@@ -657,6 +660,9 @@ mainAvatar.addEventListener('click', () => {
         newPinInput.value = '';
         confirmPinInput.value = '';
         pinModal.style.display = 'flex';
+        requestAnimationFrame(() => {
+            pinModal.classList.add('modal-open');
+        });
     }
 });
 

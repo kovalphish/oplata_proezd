@@ -297,12 +297,6 @@ body {
     background-color: rgba(0,0,0,0.6);
     align-items: center;
     justify-content: center;
-    opacity: 0;
-    transition: opacity 0.3s ease;
-}
-
-.modal.modal-open {
-    opacity: 1;
 }
 
 .modal-content {
@@ -322,6 +316,15 @@ body {
     align-items: center;
     justify-content: center;
     overflow-y: auto;
+}
+
+.receipt-modal {
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.receipt-modal.modal-open {
+    opacity: 1;
 }
 
 .close {
@@ -346,7 +349,7 @@ body {
     transition: transform 0.4s cubic-bezier(0.2, 0, 0, 1), opacity 0.4s ease;
 }
 
-.modal-open .receipt-body {
+.receipt-modal.modal-open .receipt-body {
     transform: translateY(0);
     opacity: 1;
 }
