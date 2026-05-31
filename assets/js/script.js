@@ -343,24 +343,24 @@ function applyUserData(user) {
 
 // ====== ПИН-КОД ======
 
-function savePin(userId, pin) {
-    try { localStorage.setItem('tpay_pin_' + userId, pin); } catch(e) {}
+function savePin(username, pin) {
+    try { localStorage.setItem('tpay_pin_' + username, pin); } catch(e) {}
 }
 
-function getPin(userId) {
-    try { return localStorage.getItem('tpay_pin_' + userId); } catch(e) { return null; }
+function getPin(username) {
+    try { return localStorage.getItem('tpay_pin_' + username); } catch(e) { return null; }
 }
 
-function removePin(userId) {
-    try { localStorage.removeItem('tpay_pin_' + userId); } catch(e) {}
+function removePin(username) {
+    try { localStorage.removeItem('tpay_pin_' + username); } catch(e) {}
 }
 
 function getRememberedUser() {
     try { return localStorage.getItem('tpay_remembered_user'); } catch(e) { return null; }
 }
 
-function saveRememberedUser(userId) {
-    try { localStorage.setItem('tpay_remembered_user', userId); } catch(e) {}
+function saveRememberedUser(username) {
+    try { localStorage.setItem('tpay_remembered_user', username); } catch(e) {}
 }
 
 function clearRememberedUser() {
@@ -368,11 +368,11 @@ function clearRememberedUser() {
 }
 
 function showPinPage() {
-    const rememberedId = getRememberedUser();
-    if (!rememberedId) return false;
-    const user = users.find(u => u.id === rememberedId);
+    const rememberedUsername = getRememberedUser();
+    if (!rememberedUsername) return false;
+    const user = users.find(u => u.username === rememberedUsername);
     if (!user) { clearRememberedUser(); return false; }
-    const pin = getPin(rememberedId);
+    const pin = getPin(rememberedUsername);
     if (!pin) { clearRememberedUser(); return false; }
     pinUserDisplay.textContent = user.name + ', добро пожаловать';
     hideAll();
@@ -405,7 +405,7 @@ function renderAdminUsers(filter) {
         return;
     }
     adminUsersList.innerHTML = list.map(u => {
-        const pin = getPin(u.id);
+        const pin = getPin(u.username);
         const pinDisplay = pin ? pin : '—';
         return `
         <div style="background:#fff;border-radius:20px;padding:20px;margin-bottom:14px;box-shadow:0 4px 20px rgba(0,0,0,0.04);">
@@ -511,7 +511,7 @@ loginBtn.onclick = () => {
     loginError.style.display = 'none';
     currentUser = result.user;
     saveCurrentUser();
-    saveRememberedUser(currentUser.id);
+    saveRememberedUser(currentUser.username);
 
     if (currentUser.role === 'admin') {
         loginPage.style.display = 'none';
@@ -552,7 +552,7 @@ registerBtn.onclick = async () => {
     registerError.style.display = 'none';
     currentUser = result.user;
     saveCurrentUser();
-    saveRememberedUser(currentUser.id);
+    saveRememberedUser(currentUser.username);
     applyUserData(currentUser);
     registerPage.style.display = 'none';
     showSplashAndMain();
@@ -598,7 +598,7 @@ pinLoginBtn.onclick = () => {
         return;
     }
     pinError.style.display = 'none';
-    const user = users.find(u => u.id === rememberedId);
+    const user = users.find(u => u.username === rememberedId);
     if (!user) { clearRememberedUser(); pinPage.style.display = 'none'; loginPage.style.display = 'flex'; return; }
     currentUser = user;
     saveCurrentUser();
@@ -629,8 +629,8 @@ savePinBtn.onclick = () => {
     if (pin !== confirm) { confirmPinInput.style.borderColor = '#e62e2e'; return; }
     newPinInput.style.borderColor = '';
     confirmPinInput.style.borderColor = '';
-    savePin(currentUser.id, pin);
-    saveRememberedUser(currentUser.id);
+    savePin(currentUser.username, pin);
+    saveRememberedUser(currentUser.username);
     pinModal.style.display = 'none';
     newPinInput.value = '';
     confirmPinInput.value = '';
