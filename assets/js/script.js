@@ -104,11 +104,13 @@ const transferPage = document.getElementById('transferPage');
 const successPage = document.getElementById('successPage');
 const transferPhone = document.getElementById('transferPhone');
 const transferAmount = document.getElementById('transferAmount');
+const transferComment = document.getElementById('transferComment');
 const doTransferBtn = document.getElementById('doTransferBtn');
 const backFromTransfer = document.getElementById('backFromTransfer');
 const closeSuccess = document.getElementById('closeSuccess');
 const successDoneBtn = document.getElementById('successDoneBtn');
 const successPhone = document.getElementById('successPhone');
+const successName = document.getElementById('successName');
 const successAmount = document.getElementById('successAmount');
 const successBankLogo = document.getElementById('successBankLogo');
 const successReceiptBtn = document.getElementById('successReceiptBtn');
@@ -160,35 +162,140 @@ const savePinBtn = document.getElementById('savePinBtn');
 const cancelPinBtn = document.getElementById('cancelPinBtn');
 const pinLogoutBtn = document.getElementById('pinLogoutBtn');
 
-// ====== СИСТЕМА ПОЛЬЗОВАТЕЛЕЙ ======
+// ====== СИСТЕМА ПОЛЬЗОВАТЕЛЕЙ (FIREBASE) ======
+
+const PRESET_USERS = [
+    { username: 'admin', password: 'admin123', name: 'Администратор', balance: 0, role: 'admin' },
+];
+
 let users = [];
 let currentUser = null;
 let editingUserId = null;
+let usersLoaded = false;
+let firebaseFailed = false;
+let initCallbacks = [];
 
-function initUsers() {
-    try {
-        const data = localStorage.getItem('tpay_users');
-        if (data) {
-            users = JSON.parse(data);
-        } else {
-            users = [
-                { id: 'admin', username: 'admin', password: 'admin123', name: 'Администратор', balance: 0, role: 'admin' },
-                { id: 'user1', username: 'user', password: 'user123', name: 'Егор', balance: 50000, role: 'user' }
-            ];
-            saveUsers();
-        }
-        const currentId = localStorage.getItem('tpay_current_user');
-        if (currentId) {
-            currentUser = users.find(u => u.id === currentId) || null;
-        }
-    } catch(e) {
-        users = [];
-        currentUser = null;
-    }
+function onUsersLoaded(fn) {
+    if (usersLoaded) fn();
+    else initCallbacks.push(fn);
 }
 
-function saveUsers() {
-    try { localStorage.setItem('tpay_users', JSON.stringify(users)); } catch(e) {}
+function initUsers() {
+    usersRef.once('value').then(snap => {
+        if (!snap.val()) {
+            const updates = {};
+            PRESET_USERS.forEach(u => {
+                updates[usersRef.push().key] = u;
+            });
+            return usersRef.update(updates);
+        }
+    }).then(() => {
+        usersRef.on('value', snap => {
+            const data = snap.val();
+            users = [];
+            if (data) {
+                Object.keys(data).forEach(key => {
+                    const u = data[key];
+                    u.id = key;
+                    if (!u.role) u.role = 'user';
+                    users.push(u);
+                });
+            }
+            // Очистка старых preset-пользователей (кроме admin)
+            const oldPresets = ['user', 'alice', 'bob', 'maria'];
+            const cleanup = {};
+            users.forEach(u => {
+                if (oldPresets.includes(u.username)) {
+                    cleanup[u.id] = null;
+                }
+            });
+            if (Object.keys(cleanup).length) {
+                usersRef.update(cleanup);
+            }
+            if (!usersLoaded) {
+                usersLoaded = true;
+                initCallbacks.forEach(fn => fn());
+                initCallbacks = [];
+            }
+            if (currentUser) {
+                const updated = users.find(u => u.id === currentUser.id);
+                if (updated) {
+                    currentUser = updated;
+                    if (currentUser.role === 'user') {
+                        balance = currentUser.balance;
+                        updateBalanceUI();
+                    }
+                }
+            }
+        });
+    }).catch(e => {
+        console.error('Firebase error:', e);
+        firebaseFailed = true;
+        splashScreen.style.display = 'none';
+        loginPage.style.display = 'flex';
+    });
+}
+
+function registerUser(username, password, name) {
+    return new Promise(resolve => {
+        const localUsers = JSON.parse(localStorage.getItem('tpay_local_users') || '[]');
+        if (localUsers.find(u => u.username === username)) {
+            resolve({ success: false, error: 'Пользователь с таким логином уже существует' });
+            return;
+        }
+        if (PRESET_USERS.find(u => u.username === username)) {
+            resolve({ success: false, error: 'Пользователь с таким логином уже существует' });
+            return;
+        }
+        // Если Firebase доступен, регистрируем через него
+        if (typeof usersRef !== 'undefined' && usersLoaded && !firebaseFailed) {
+            usersRef.once('value').then(snap => {
+                const data = snap.val();
+                if (data) {
+                    for (const key in data) {
+                        if (data[key].username === username) {
+                            resolve({ success: false, error: 'Пользователь с таким логином уже существует' });
+                            return;
+                        }
+                    }
+                }
+                const newRef = usersRef.push();
+                newRef.set({
+                    username, password,
+                    name: name || username,
+                    balance: 20000,
+                    role: 'user'
+                }).then(() => {
+                    resolve({ success: true, user: { id: newRef.key, username, password, name: name || username, balance: 20000, role: 'user' } });
+                });
+            }).catch(() => {
+                resolve({ success: false, error: 'Ошибка соединения с сервером' });
+            });
+        } else {
+            // Локальная регистрация (запасной вариант)
+            const newUser = {
+                id: 'local_' + Date.now(),
+                username,
+                password,
+                name: name || username,
+                balance: 20000,
+                role: 'user'
+            };
+            localUsers.push(newUser);
+            localStorage.setItem('tpay_local_users', JSON.stringify(localUsers));
+            users.push(newUser);
+            resolve({ success: true, user: newUser });
+        }
+    });
+}
+
+function loginUser(username, password) {
+    const localUsers = JSON.parse(localStorage.getItem('tpay_local_users') || '[]');
+    const allUsers = [...users, ...localUsers.filter(u => !users.find(x => x.id === u.id))];
+    const source = allUsers.length ? allUsers : PRESET_USERS;
+    const user = source.find(u => u.username === username && u.password === password);
+    if (!user) return { success: false, error: 'Неверный логин или пароль' };
+    return { success: true, user };
 }
 
 function saveCurrentUser() {
@@ -198,29 +305,21 @@ function saveCurrentUser() {
     } catch(e) {}
 }
 
-function registerUser(username, password, name) {
-    if (users.find(u => u.username === username)) {
-        return { success: false, error: 'Пользователь с таким логином уже существует' };
+function syncUserBalance() {
+    if (currentUser && currentUser.role === 'user') {
+        currentUser.balance = balance;
+        if (!firebaseFailed) {
+            usersRef.child(currentUser.id).update({ balance: balance });
+        } else {
+            // Обновляем в локальном хранилище
+            const localUsers = JSON.parse(localStorage.getItem('tpay_local_users') || '[]');
+            const idx = localUsers.findIndex(u => u.id === currentUser.id);
+            if (idx !== -1) {
+                localUsers[idx].balance = balance;
+                localStorage.setItem('tpay_local_users', JSON.stringify(localUsers));
+            }
+        }
     }
-    const newUser = {
-        id: 'u' + Date.now().toString(36),
-        username: username,
-        password: password,
-        name: name || username,
-        balance: 20000,
-        role: 'user'
-    };
-    users.push(newUser);
-    saveUsers();
-    return { success: true, user: newUser };
-}
-
-function loginUser(username, password) {
-    const user = users.find(u => u.username === username && u.password === password);
-    if (!user) {
-        return { success: false, error: 'Неверный логин или пароль' };
-    }
-    return { success: true, user: user };
 }
 
 function logoutUser() {
@@ -240,15 +339,6 @@ function applyUserData(user) {
     if (userName) userName.textContent = user.name;
     try { localStorage.setItem('tpay_name', user.name); } catch(e) {}
     updateAvatar();
-}
-
-function syncUserBalance() {
-    if (currentUser && currentUser.role === 'user') {
-        currentUser.balance = balance;
-        const idx = users.findIndex(u => u.id === currentUser.id);
-        if (idx !== -1) users[idx].balance = balance;
-        saveUsers();
-    }
 }
 
 // ====== ПИН-КОД ======
@@ -314,21 +404,34 @@ function renderAdminUsers(filter) {
         adminUsersList.innerHTML = '<div style="text-align:center;padding:60px 0;color:#8c8f94;font-size:15px;">Нет пользователей</div>';
         return;
     }
-    adminUsersList.innerHTML = list.map(u => `
-        <div style="background:#fff;border-radius:16px;padding:16px;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 2px 8px rgba(0,0,0,0.03);">
-            <div style="display:flex;align-items:center;gap:12px;">
-                <div style="width:40px;height:40px;border-radius:50%;background:#3b7cf6;display:flex;align-items:center;justify-content:center;color:white;font-weight:bold;font-size:16px;flex-shrink:0;">${u.name.charAt(0).toUpperCase()}</div>
-                <div>
-                    <div style="font-size:15px;font-weight:600;color:#1d1d1d;">${u.name}</div>
+    adminUsersList.innerHTML = list.map(u => {
+        const pin = getPin(u.id);
+        const pinDisplay = pin ? pin : '—';
+        return `
+        <div style="background:#fff;border-radius:20px;padding:20px;margin-bottom:14px;box-shadow:0 4px 20px rgba(0,0,0,0.04);">
+            <div style="display:flex;align-items:center;gap:14px;margin-bottom:16px;">
+                <div style="width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,#3b7cf6,#6b9df8);display:flex;align-items:center;justify-content:center;color:white;font-weight:bold;font-size:18px;flex-shrink:0;">${u.name.charAt(0).toUpperCase()}</div>
+                <div style="flex:1;">
+                    <div style="font-size:16px;font-weight:600;color:#1d1d1d;">${u.name}</div>
                     <div style="font-size:12px;color:#8c8f94;">@${u.username}</div>
                 </div>
+                <div style="text-align:right;">
+                    <div style="font-size:18px;font-weight:700;color:#1d1d1d;">${u.balance.toLocaleString('ru-RU')} ₽</div>
+                    <button class="admin-edit-btn" data-id="${u.id}" style="margin-top:4px;padding:6px 16px;border:none;border-radius:10px;background:#f2f7ff;color:#3b7cf6;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;">Изменить</button>
+                </div>
             </div>
-            <div style="text-align:right;">
-                <div style="font-size:16px;font-weight:700;color:#1d1d1d;">${u.balance.toLocaleString('ru-RU')} ₽</div>
-                <button class="admin-edit-btn" data-id="${u.id}" style="margin-top:6px;padding:6px 14px;border:none;border-radius:10px;background:#f2f7ff;color:#3b7cf6;font-size:12px;font-weight:500;cursor:pointer;font-family:inherit;">Изменить баланс</button>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;padding-top:14px;border-top:1px solid #f0f2f5;">
+                <div>
+                    <div style="font-size:11px;color:#8c8f94;margin-bottom:2px;text-transform:uppercase;letter-spacing:0.5px;">Пароль</div>
+                    <div style="font-size:14px;color:#1d1d1d;font-weight:500;font-family:monospace;">${u.password || '—'}</div>
+                </div>
+                <div>
+                    <div style="font-size:11px;color:#8c8f94;margin-bottom:2px;text-transform:uppercase;letter-spacing:0.5px;">Пин-код</div>
+                    <div style="font-size:14px;color:#1d1d1d;font-weight:500;font-family:monospace;">${pinDisplay}</div>
+                </div>
             </div>
         </div>
-    `).join('');
+    `}).join('');
 
     adminUsersList.querySelectorAll('.admin-edit-btn').forEach(btn => {
         btn.addEventListener('click', () => {
@@ -368,11 +471,20 @@ balanceModalSave.onclick = () => {
     const u = users.find(x => x.id === editingUserId);
     if (!u) return;
     u.balance = val;
+    if (!firebaseFailed) {
+        usersRef.child(u.id).update({ balance: val });
+    } else {
+        const localUsers = JSON.parse(localStorage.getItem('tpay_local_users') || '[]');
+        const idx = localUsers.findIndex(x => x.id === u.id);
+        if (idx !== -1) {
+            localUsers[idx].balance = val;
+            localStorage.setItem('tpay_local_users', JSON.stringify(localUsers));
+        }
+    }
     if (currentUser && currentUser.id === u.id) {
         balance = val;
         updateBalanceUI();
     }
-    saveUsers();
     balanceModal.style.display = 'none';
     editingUserId = null;
     renderAdminUsers(adminSearchInput.value.trim());
@@ -412,7 +524,7 @@ loginBtn.onclick = () => {
     }
 };
 
-registerBtn.onclick = () => {
+registerBtn.onclick = async () => {
     const name = registerName.value.trim();
     const username = registerUsername.value.trim();
     const password = registerPassword.value.trim();
@@ -431,7 +543,7 @@ registerBtn.onclick = () => {
         registerError.style.display = 'block';
         return;
     }
-    const result = registerUser(username, password, name);
+    const result = await registerUser(username, password, name);
     if (!result.success) {
         registerError.textContent = result.error;
         registerError.style.display = 'block';
@@ -807,7 +919,7 @@ async function showDetail(id) {
 
     detailDatetime.textContent = `${p.date} • ${p.time}`;
     if (p.type === 'transfer') {
-        detailTitle.textContent = p.phone || 'Перевод';
+        detailTitle.textContent = p.comment || p.phone || 'Перевод';
         detailCategory.innerHTML = '🔵 Перевод через СБП';
     } else {
         detailTitle.textContent = p.vehicle;
@@ -824,6 +936,9 @@ async function showDetail(id) {
     historyPage.style.overflow = 'hidden';
     if (detailPage) {
         detailPage.style.display = 'block';
+        requestAnimationFrame(() => {
+            detailPage.classList.add('detail-visible');
+        });
         const bs = detailPage.querySelector('.bottom-sheet');
         if (bs) {
             bs.classList.remove('sheet-visible');
@@ -882,7 +997,7 @@ function savePayment() {
     return payment;
 }
 
-function saveTransferPayment(phone, bank, amount) {
+function saveTransferPayment(phone, bank, amount, comment) {
     const now = new Date();
     subtractBalance(amount + ' ₽');
     const payment = {
@@ -891,10 +1006,11 @@ function saveTransferPayment(phone, bank, amount) {
         date: formatDate(now),
         time: formatTime(now),
         fullDate: format(now) + ":" + pad(now.getSeconds()),
-        vehicle: 'Перевод через СБП',
+        vehicle: comment || 'Перевод через СБП',
         price: amount + ' ₽',
         phone: phone,
         bank: bank,
+        comment: comment || '',
         status: "Успешно",
         store: 'Перевод по номеру телефона',
         account: phone,
@@ -911,7 +1027,8 @@ function saveTransferPayment(phone, bank, amount) {
 function fillReceipt(p) {
     receiptDate.textContent = p.fullDate;
     receiptSumBig.textContent = p.price;
-    receiptSumSmall.textContent = 'Комиссия 0 ₽';
+    receiptSumSmall.textContent = '';
+    receiptSumSmall.style.display = 'none';
     receiptNumber.textContent = "Квитанция № " + p.receiptNumber;
 
     const randId = Math.random().toString(36).substring(2, 14).toUpperCase();
@@ -922,6 +1039,7 @@ function fillReceipt(p) {
             <div class="receipt-row"><span class="row-title">Статус</span><span class="row-value">Успешно</span></div>
             <div class="receipt-row"><span class="row-title">Сумма</span><span class="row-value">${p.price}</span></div>
             <div class="receipt-row"><span class="row-title">Телефон получателя</span><span class="row-value">${p.phone || '—'}</span></div>
+            ${p.comment ? `<div class="receipt-row"><span class="row-title">Имя получателя</span><span class="row-value">${p.comment}</span></div>` : ''}
             <div class="receipt-row"><span class="row-title">Банк получателя</span><span class="row-value">${p.bank || 'СБП'}</span></div>
             <div class="receipt-row"><span class="row-title">Идентификатор</span><span class="row-value">${randId}</span></div>
             <div class="receipt-row"><span class="row-title">Счет списания</span><span class="row-value">${acc}</span></div>
@@ -1000,7 +1118,7 @@ function renderHistory() {
                         <img src="assets/ico/spb1.svg" width="28" height="28" alt="">
                     </div>
                     <div class="tx-details">
-                        <div class="tx-name">${p.phone || 'Перевод'}</div>
+                        <div class="tx-name">${p.comment || p.phone || 'Перевод'}</div>
                         <div class="tx-category">${p.bank || 'СБП'}</div>
                     </div>
                     <div class="tx-amounts">
@@ -1045,6 +1163,7 @@ doTransferBtn.onclick = async () => {
     try {
         const phone = transferPhone.value.trim();
         const amount = transferAmount.value.trim();
+        const comment = transferComment.value.trim();
         if (!phone || phone.length < 10) { transferPhone.style.borderColor = '#e62e2e'; return; }
         if (!amount || parseFloat(amount) < 1) { transferAmount.style.borderColor = '#e62e2e'; return; }
 
@@ -1055,10 +1174,15 @@ doTransferBtn.onclick = async () => {
         }
 
         const bank = selectedBank || 'СБП';
-        const payment = saveTransferPayment(phone, bank, amount);
+        const payment = saveTransferPayment(phone, bank, amount, comment);
         updateMain();
 
+        showProcessing('Перевод выполняется', 'Пожалуйста, подождите...');
+        await delay(4000);
+        hideProcessing();
+
         successPhone.textContent = phone;
+        successName.textContent = comment || '';
         successAmount.textContent = '− ' + amount + ' ₽';
         const logoMap = {
             'Сбер Банк': 'assets/ico/sber.png',
@@ -1066,7 +1190,7 @@ doTransferBtn.onclick = async () => {
             'Альфа Банк': 'assets/ico/alfa.svg',
             'Озон Банк': 'assets/ico/ozon.png'
         };
-        successBankLogo.src = logoMap[bank] || 'assets/ico/tbank.png';
+        successBankLogo.src = logoMap[bank] || 'assets/ico/spb1.svg';
 
         hideAll();
         successPage.style.display = 'block';
@@ -1097,8 +1221,20 @@ payBtn.onclick = async () => {
     await showMain();
 };
 
-closeBtn.onclick = () => { modal.style.display = 'none'; };
-modal.onclick = e => { if (e.target === modal) modal.style.display = 'none'; };
+closeBtn.onclick = closeModal;
+modal.onclick = e => { if (e.target === modal) closeModal(); };
+
+function closeModal() {
+    modal.classList.remove('modal-open');
+    setTimeout(() => { modal.style.display = 'none'; }, 300);
+}
+
+function openModal() {
+    modal.style.display = 'flex';
+    requestAnimationFrame(() => {
+        modal.classList.add('modal-open');
+    });
+}
 
 captureCircle.onclick = goToPayment;
 
@@ -1112,7 +1248,7 @@ successReceiptBtn.onclick = () => {
     const p = payments[0];
     if (!p) return;
     fillReceipt(p);
-    modal.style.display = 'flex';
+    openModal();
 };
 
 document.getElementById('gotoTransferBtn').onclick = async () => {
@@ -1120,7 +1256,7 @@ document.getElementById('gotoTransferBtn').onclick = async () => {
     isNavigating = true;
     hideAll();
     selectedBank = null;
-    document.querySelectorAll('.bank-chip').forEach(c => c.classList.remove('active'));
+    document.querySelectorAll('.bank-item').forEach(c => c.classList.remove('active'));
     transferPhone.value = '';
     transferAmount.value = '';
     transferSkeleton.style.display = 'block';
@@ -1148,10 +1284,13 @@ backFromCard.onclick = showMain;
 backFromScanner.onclick = showMain;
 backFromHistory.onclick = showMain;
 function closeDetail() {
+    detailPage.classList.remove('detail-visible');
     const bs = detailPage.querySelector('.bottom-sheet');
     if (bs) bs.classList.remove('sheet-visible');
-    detailPage.style.display = 'none';
-    historyPage.style.overflow = '';
+    setTimeout(() => {
+        detailPage.style.display = 'none';
+        historyPage.style.overflow = '';
+    }, 600);
 }
 
 backFromDetail.onclick = closeDetail;
@@ -1163,25 +1302,46 @@ receiptBtn.addEventListener('click', (e) => {
     const p = payments.find(pay => pay.id === currentPaymentId);
     if (!p) return;
     fillReceipt(p);
-    modal.style.display = 'flex';
+    openModal();
 });
 
 // ====== ИНИЦИАЛИЗАЦИЯ ======
 
-initUsers();
+if (typeof usersRef !== 'undefined') {
+    initUsers();
+    // Fallback: если Firebase не ответил за 5 секунд, используем PRESET_USERS
+    setTimeout(() => {
+        if (!usersLoaded) {
+            firebaseFailed = true;
+            const localUsers = JSON.parse(localStorage.getItem('tpay_local_users') || '[]');
+            users = PRESET_USERS.map((u, i) => ({ ...u, id: 'fallback_' + i }));
+            localUsers.forEach(u => users.push(u));
+            usersLoaded = true;
+            splashScreen.style.display = 'none';
+            loginPage.style.display = 'flex';
+        }
+    }, 5000);
 
-splashScreen.style.display = 'none';
-
-// Проверяем запомненного пользователя с пин-кодом
-const rememberedId = getRememberedUser();
-if (rememberedId) {
-    const pin = getPin(rememberedId);
-    if (pin) {
-        showPinPage();
-    } else {
-        clearRememberedUser();
-        loginPage.style.display = 'flex';
-    }
+    onUsersLoaded(() => {
+        splashScreen.style.display = 'none';
+        const rememberedId = getRememberedUser();
+        if (rememberedId) {
+            const pin = getPin(rememberedId);
+            if (pin) {
+                showPinPage();
+            } else {
+                clearRememberedUser();
+                loginPage.style.display = 'flex';
+            }
+        } else {
+            loginPage.style.display = 'flex';
+        }
+    });
 } else {
+    // Firebase не загрузился — используем локальные данные
+    const localUsers = JSON.parse(localStorage.getItem('tpay_local_users') || '[]');
+    users = PRESET_USERS.map((u, i) => ({ ...u, id: 'fallback_' + i }));
+    localUsers.forEach(u => users.push(u));
+    splashScreen.style.display = 'none';
     loginPage.style.display = 'flex';
 }
