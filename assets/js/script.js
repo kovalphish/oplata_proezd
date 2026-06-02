@@ -263,10 +263,10 @@ function registerUser(username, password, name) {
                 newRef.set({
                     username, password,
                     name: name || username,
-                    balance: 20000,
+                    balance: 0,
                     role: 'user'
                 }).then(() => {
-                    resolve({ success: true, user: { id: newRef.key, username, password, name: name || username, balance: 20000, role: 'user' } });
+                    resolve({ success: true, user: { id: newRef.key, username, password, name: name || username, balance: 0, role: 'user' } });
                 });
             }).catch(() => {
                 resolve({ success: false, error: 'Ошибка соединения с сервером' });
@@ -278,7 +278,7 @@ function registerUser(username, password, name) {
                 username,
                 password,
                 name: name || username,
-                balance: 20000,
+                balance: 0,
                 role: 'user'
             };
             localUsers.push(newUser);
@@ -418,6 +418,7 @@ function renderAdminUsers(filter) {
                 <div style="text-align:right;">
                     <div style="font-size:18px;font-weight:700;color:#1d1d1d;">${u.balance.toLocaleString('ru-RU')} ₽</div>
                     <button class="admin-edit-btn" data-id="${u.id}" style="margin-top:4px;padding:6px 16px;border:none;border-radius:10px;background:#f2f7ff;color:#3b7cf6;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;">Изменить</button>
+                    <button class="admin-delete-btn" data-id="${u.id}" style="margin-top:4px;padding:6px 16px;border:none;border-radius:10px;background:#fff0f0;color:#e62e2e;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;margin-left:6px;">Удалить</button>
                 </div>
             </div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;padding-top:14px;border-top:1px solid #f0f2f5;">
@@ -442,6 +443,23 @@ function renderAdminUsers(filter) {
             balanceModalInput.value = '';
             balanceModalInput.placeholder = 'Текущий: ' + u.balance.toLocaleString('ru-RU') + ' ₽';
             balanceModal.style.display = 'flex';
+        });
+    });
+    adminUsersList.querySelectorAll('.admin-delete-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const id = btn.dataset.id;
+            const u = users.find(x => x.id === id);
+            if (!u || u.role === 'admin') return;
+            if (!confirm('Удалить пользователя ' + u.name + ' (' + u.username + ')?')) return;
+            if (!firebaseFailed) {
+                usersRef.child(id).remove();
+            } else {
+                const localUsers = JSON.parse(localStorage.getItem('tpay_local_users') || '[]');
+                const filtered = localUsers.filter(x => x.id !== id);
+                localStorage.setItem('tpay_local_users', JSON.stringify(filtered));
+            }
+            removePin(u.username);
+            renderAdminUsers(adminSearchInput.value.trim());
         });
     });
 }
@@ -723,7 +741,7 @@ userName.addEventListener('keydown', function(e) {
 
 // ====== БАЛАНС ======
 
-let balance = 20000;
+let balance = 0;
 
 function loadBalance() {
     if (currentUser && currentUser.role === 'user') {
@@ -732,7 +750,7 @@ function loadBalance() {
         try {
             const saved = localStorage.getItem('tpay_balance');
             if (saved !== null) balance = parseFloat(saved);
-            else { localStorage.setItem('tpay_balance', '20000'); }
+            else { localStorage.setItem('tpay_balance', '0'); }
         } catch(e) {}
     }
     updateBalanceUI();
