@@ -1066,13 +1066,27 @@ function fillReceipt(p) {
 
 // ====== STORAGE ======
 
+function getPaymentsKey() {
+    return 'tpay_payments_' + (currentUser ? currentUser.username : 'default');
+}
+
 function saveToStorage() {
-    try { localStorage.setItem('tpay_payments', JSON.stringify(payments)); } catch(e) {}
+    try { localStorage.setItem(getPaymentsKey(), JSON.stringify(payments)); } catch(e) {}
 }
 
 function loadFromStorage() {
     try {
-        const data = localStorage.getItem('tpay_payments');
+        const key = getPaymentsKey();
+        let data = localStorage.getItem(key);
+        // Миграция со старого общего ключа на per-user
+        if (!data) {
+            const oldData = localStorage.getItem('tpay_payments');
+            if (oldData) {
+                data = oldData;
+                localStorage.setItem(key, oldData);
+                localStorage.removeItem('tpay_payments');
+            }
+        }
         if (data) {
             payments = JSON.parse(data);
             payments.forEach(p => {
