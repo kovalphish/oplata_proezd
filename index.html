@@ -12,8 +12,9 @@
     <link rel="icon" type="image/svg+xml" href="assets/ico/tbank.png">
     <link rel="apple-touch-icon" href="assets/ico/tbank.png">
     <link rel="stylesheet" href="assets/css/styles.css">
-    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-messaging-compat.js"></script>
     <script>
     const firebaseConfig = {
         apiKey: "AIzaSyAhsdhKdvsoneIykp9taxhUWKWBTMlCvT4",
@@ -30,9 +31,6 @@
     const usersRef = db.ref('users');
     </script>
     <script src="https://cdn.jsdelivr.net/npm/jsqr@1.0.4/dist/jsQR.min.js"></script>
-    <script>
-    // service worker отключён для отладки
-    </script>
 </head>
 <body>
 
@@ -891,6 +889,6 @@
     </div>
 </div>
 
-<script src="assets/js/script.js?v=45"></script>
+<script src="assets/js/script.js?v=46"></script>
 </body>
 </html>

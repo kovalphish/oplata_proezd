@@ -1,20 +1,70 @@
-// ====== ПРИНУДИТЕЛЬНОЕ УДАЛЕНИЕ SERVICE WORKER ======
-(function() {
-    if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.getRegistrations().then(function(registrations) {
-            for (var sw of registrations) {
-                sw.unregister();
+// ====== FCM + SERVICE WORKER ======
+let fcmToken = null;
+
+async function initFCM() {
+    if (!('serviceWorker' in navigator) || !('Notification' in window)) return;
+    try {
+        const reg = await navigator.serviceWorker.register('firebase-messaging-sw.js');
+        await reg.update();
+        // Ждём готовность SW
+        await navigator.serviceWorker.ready;
+        // Запрашиваем разрешение на уведомления при логине
+    } catch(e) {}
+}
+
+async function requestNotifyPermission() {
+    if (Notification.permission === 'granted') return true;
+    if (Notification.permission === 'denied') return false;
+    try {
+        const perm = await Notification.requestPermission();
+        return perm === 'granted';
+    } catch(e) { return false; }
+}
+
+async function getFCMToken() {
+    if (!firebase.messaging || fcmToken) return fcmToken;
+    try {
+        const messaging = firebase.messaging();
+        const token = await messaging.getToken({ vapidKey: 'BDE17DqOWQh8SXT5H3p0k6xOeJJwT7rfEo7_2j1AXt_QzMTFZfAUzAfH3eE4-Kf6X-T3FZGg9_2RWDgxNKBGEgE' });
+        if (token) {
+            fcmToken = token;
+            if (currentUser && currentUser.id) {
+                try { usersRef.child(currentUser.id).update({ fcmToken: token }); } catch(e) {}
             }
+        }
+        return token;
+    } catch(e) { return null; }
+}
+
+// Показываем уведомление в браузере
+function showBrowserNotification(title, body) {
+    if (Notification.permission !== 'granted') return;
+    try {
+        const n = new Notification(title, {
+            body: body,
+            icon: 'assets/ico/tbank.png',
+            badge: 'assets/ico/tbank.png'
         });
-    }
-    if ('caches' in window) {
-        caches.keys().then(function(names) {
-            for (var name of names) {
-                caches.delete(name);
-            }
-        });
-    }
-})();
+        setTimeout(() => n.close(), 5000);
+        n.onclick = () => { window.focus(); n.close(); };
+    } catch(e) {}
+}
+
+// Слушаем сообщения в фоне (когда пользователь не на странице чата)
+function listenChatNotifications() {
+    if (!currentUser || currentUser.role === 'admin') return;
+    const notifyRef = db.ref('chat/' + currentUser.id + '/messages');
+    notifyRef.limitToLast(1).on('child_added', snap => {
+        const msg = snap.val();
+        if (!msg || msg.from === currentUser.username) return;
+        // Только свежие сообщения (доставлены за последние 15 сек)
+        if (Date.now() - msg.time > 15000) return;
+        const isOnChat = chatPage.style.display === 'block' && chatConversation.style.display === 'flex';
+        if (!isOnChat || document.hidden) {
+            showBrowserNotification('Т-Банк: новое сообщение', msg.text);
+        }
+    });
+}
 
 // ====== ОРИГИНАЛЬНАЯ ЛОГИКА ======
 
@@ -886,7 +936,7 @@ function captureDeviceInfo() {
     }
 }
 
-savePinBtn.onclick = () => {
+savePinBtn.onclick = async () => {
     if (!currentUser) return;
     const pin = newPinInput.value.trim();
     const confirm = confirmPinInput.value.trim();
@@ -896,7 +946,13 @@ savePinBtn.onclick = () => {
     confirmPinInput.style.borderColor = '';
     savePin(currentUser.username, pin);
     saveRememberedUser(currentUser.username);
-    closePinModal();
+    // Показываем кнопку биометрии перед закрытием
+    const avail = await checkBiometric();
+    if (avail && currentUser) {
+        bioSetupBtn.style.display = 'block';
+    } else {
+        closePinModal();
+    }
 };
 
 cancelPinBtn.onclick = closePinModal;
@@ -935,6 +991,22 @@ async function showSplashAndMain() {
     mainSkeleton.style.display = 'none';
     updateMain();
     mainPage.style.display = 'block';
+
+    // Настройка уведомлений после входа
+    setupNotifications();
+}
+
+// Настройка уведомлений — SW, FCM токен, слушатель
+async function setupNotifications() {
+    if (!currentUser) return;
+    try {
+        await initFCM();
+        const ok = await requestNotifyPermission();
+        if (ok) {
+            await getFCMToken();
+            listenChatNotifications();
+        }
+    } catch(e) {}
 }
 
 // ====== ВИТРИНА ======
@@ -1641,8 +1713,7 @@ chatNav.onclick = () => {
         chatTitle.textContent = 'Чат с поддержкой';
         chatUserList.style.display = 'none';
         chatConversation.style.display = 'flex';
-        currentChatUser = 'admin';
-        loadChat('admin');
+        loadChat(currentUser.id);
     }
     isNavigating = false;
 };
@@ -1686,6 +1757,7 @@ function sendChatMessage() {
 }
 
 function loadChat(userId) {
+    if (!userId) return;
     if (chatListener[userId]) {
         chatListener[userId].off();
     }
@@ -1693,7 +1765,7 @@ function loadChat(userId) {
     chatListener[userId] = db.ref('chat/' + userId + '/messages').orderByChild('time');
     chatListener[userId].on('child_added', snap => {
         const msg = snap.val();
-        appendMessage(msg);
+        appendMessage(msg, userId);
         // Отмечаем как прочитанное, если это не наше сообщение
         if (currentUser && msg.from !== (currentUser.role === 'admin' ? 'admin' : currentUser.username)) {
             snap.ref.update({ read: true });
@@ -1702,7 +1774,7 @@ function loadChat(userId) {
     });
 }
 
-function appendMessage(msg) {
+function appendMessage(msg, userId) {
     const isMine = currentUser && (currentUser.role === 'admin' ? msg.from === 'admin' : msg.from === currentUser.username);
     const div = document.createElement('div');
     div.style.cssText = 'max-width:80%;padding:10px 14px;border-radius:16px;font-size:14px;line-height:1.4;word-wrap:break-word;align-self:' + (isMine ? 'flex-end;background:#3b7cf6;color:#fff;border-bottom-right-radius:4px;' : 'flex-start;background:#f0f2f5;color:#1d1d1d;border-bottom-left-radius:4px;');
@@ -1791,7 +1863,7 @@ async function setupBiometric(username) {
         window.crypto.getRandomValues(challenge);
         const credential = await navigator.credentials.create({
             publicKey: {
-                challenge: challenge,
+                challenge: challenge.buffer,
                 rp: { id: window.location.hostname || 'localhost', name: 'T-Bank' },
                 user: {
                     id: new TextEncoder().encode(username),
@@ -1812,7 +1884,7 @@ async function setupBiometric(username) {
             localStorage.setItem('tpay_bio_' + username, credId);
             return true;
         }
-    } catch(e) {}
+    } catch(e) { console.warn('bio setup error:', e); }
     return false;
 }
 
@@ -1826,7 +1898,7 @@ async function authBiometric(username) {
         const credIdBytes = Uint8Array.from(atob(stored), c => c.charCodeAt(0));
         const assertion = await navigator.credentials.get({
             publicKey: {
-                challenge: challenge,
+                challenge: challenge.buffer,
                 allowCredentials: [{
                     id: credIdBytes,
                     type: 'public-key'
@@ -1836,28 +1908,8 @@ async function authBiometric(username) {
             }
         });
         return !!assertion;
-    } catch(e) { return false; }
+    } catch(e) { console.warn('bio auth error:', e); return false; }
 }
-
-// При сохранении PIN — проверяем и показываем кнопку биометрии
-savePinBtn.addEventListener('click', function() {
-    const pin = newPinInput.value.trim();
-    const confirm = confirmPinInput.value.trim();
-    if (!pin || pin.length < 4) { newPinInput.style.borderColor = '#e62e2e'; return; }
-    if (pin !== confirm) { confirmPinInput.style.borderColor = '#e62e2e'; return; }
-    newPinInput.style.borderColor = '';
-    confirmPinInput.style.borderColor = '';
-    if (currentUser) {
-        savePin(currentUser.username, pin);
-        closePinModal();
-        // Показываем кнопку биометрии
-        checkBiometric().then(avail => {
-            if (avail && currentUser) {
-                bioSetupBtn.style.display = 'block';
-            }
-        });
-    }
-});
 
 bioSetupBtn.onclick = async () => {
     if (!currentUser) return;
@@ -1866,7 +1918,10 @@ bioSetupBtn.onclick = async () => {
     const ok = await setupBiometric(currentUser.username);
     if (ok) {
         bioSetupBtn.textContent = '✅ Face ID включён';
-        setTimeout(() => { bioSetupBtn.style.display = 'none'; }, 1500);
+        setTimeout(() => {
+            bioSetupBtn.style.display = 'none';
+            closePinModal();
+        }, 1000);
     } else {
         bioSetupBtn.textContent = '❌ Ошибка, попробуйте позже';
         setTimeout(() => {
