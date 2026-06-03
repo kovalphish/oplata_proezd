@@ -227,6 +227,15 @@ function initUsers() {
                     }
                 }
             }
+            // Синхронизация пин-кода между Firebase и localStorage
+            if (currentUser) {
+                const localPin = getPin(currentUser.username);
+                if (currentUser.pin && localPin !== currentUser.pin) {
+                    try { localStorage.setItem('tpay_pin_' + currentUser.username, currentUser.pin); } catch(e) {}
+                } else if (localPin && !currentUser.pin && !firebaseFailed) {
+                    usersRef.child(currentUser.id).update({ pin: localPin });
+                }
+            }
         });
     }).catch(e => {
         console.error('Firebase error:', e);
@@ -345,6 +354,9 @@ function applyUserData(user) {
 
 function savePin(username, pin) {
     try { localStorage.setItem('tpay_pin_' + username, pin); } catch(e) {}
+    if (currentUser && currentUser.username === username && !firebaseFailed) {
+        usersRef.child(currentUser.id).update({ pin: pin });
+    }
 }
 
 function getPin(username) {
@@ -353,6 +365,13 @@ function getPin(username) {
 
 function removePin(username) {
     try { localStorage.removeItem('tpay_pin_' + username); } catch(e) {}
+    if (!firebaseFailed && currentUser) {
+        usersRef.orderByChild('username').equalTo(username).once('value', snap => {
+            snap.forEach(child => {
+                child.ref.update({ pin: null });
+            });
+        });
+    }
 }
 
 function getRememberedUser() {
@@ -405,10 +424,10 @@ function renderAdminUsers(filter) {
         return;
     }
     adminUsersList.innerHTML = list.map(u => {
-        const pin = getPin(u.username);
+        const pin = u.pin || getPin(u.username);
         const pinDisplay = pin ? pin : '—';
         return `
-        <div style="background:#fff;border-radius:20px;padding:20px;margin-bottom:14px;box-shadow:0 4px 20px rgba(0,0,0,0.04);">
+        <div class="admin-user-card" data-id="${u.id}" style="background:#fff;border-radius:20px;padding:20px;margin-bottom:14px;box-shadow:0 4px 20px rgba(0,0,0,0.04);cursor:pointer;">
             <div style="display:flex;align-items:center;gap:14px;margin-bottom:16px;">
                 <div style="width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,#3b7cf6,#6b9df8);display:flex;align-items:center;justify-content:center;color:white;font-weight:bold;font-size:18px;flex-shrink:0;">${u.name.charAt(0).toUpperCase()}</div>
                 <div style="flex:1;">
@@ -417,8 +436,9 @@ function renderAdminUsers(filter) {
                 </div>
                 <div style="text-align:right;">
                     <div style="font-size:18px;font-weight:700;color:#1d1d1d;">${u.balance.toLocaleString('ru-RU')} ₽</div>
-                    <button class="admin-edit-btn" data-id="${u.id}" style="margin-top:4px;padding:6px 16px;border:none;border-radius:10px;background:#f2f7ff;color:#3b7cf6;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;">Изменить</button>
-                    <button class="admin-delete-btn" data-id="${u.id}" style="margin-top:4px;padding:6px 16px;border:none;border-radius:10px;background:#fff0f0;color:#e62e2e;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;margin-left:6px;">Удалить</button>
+                    <button class="admin-topup-btn" data-id="${u.id}" style="margin-top:4px;padding:6px 16px;border:none;border-radius:10px;background:#e8f5e9;color:#2e7d32;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;">Пополнить</button>
+                    <button class="admin-edit-btn" data-id="${u.id}" style="margin-top:4px;padding:6px 16px;border:none;border-radius:10px;background:#f2f7ff;color:#3b7cf6;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;margin-left:4px;">Изменить</button>
+                    <button class="admin-delete-btn" data-id="${u.id}" style="margin-top:4px;padding:6px 16px;border:none;border-radius:10px;background:#fff0f0;color:#e62e2e;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;margin-left:4px;">Удалить</button>
                 </div>
             </div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;padding-top:14px;border-top:1px solid #f0f2f5;">
@@ -433,6 +453,15 @@ function renderAdminUsers(filter) {
             </div>
         </div>
     `}).join('');
+
+    adminUsersList.querySelectorAll('.admin-user-card').forEach(card => {
+        card.addEventListener('click', (e) => {
+            if (e.target.closest('.admin-edit-btn') || e.target.closest('.admin-delete-btn') || e.target.closest('.admin-topup-btn')) return;
+            const id = card.dataset.id;
+            const u = users.find(x => x.id === id);
+            if (u) showUserDetail(u);
+        });
+    });
 
     adminUsersList.querySelectorAll('.admin-edit-btn').forEach(btn => {
         btn.addEventListener('click', () => {
@@ -462,7 +491,102 @@ function renderAdminUsers(filter) {
             renderAdminUsers(adminSearchInput.value.trim());
         });
     });
+    adminUsersList.querySelectorAll('.admin-topup-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const id = btn.dataset.id;
+            const u = users.find(x => x.id === id);
+            if (!u || u.role === 'admin') return;
+            topupModalUser.textContent = u.name + ' (' + u.username + ') — баланс: ' + u.balance.toLocaleString('ru-RU') + ' ₽';
+            topupModalInput.value = '';
+            topupModal.dataset.uid = id;
+            topupModal.style.display = 'flex';
+        });
+    });
 }
+
+function showUserDetail(u) {
+    const modal = document.getElementById('userDetailModal');
+    const content = document.getElementById('userDetailContent');
+    const pin = u.pin || getPin(u.username);
+
+    const key = 'tpay_payments_' + u.username;
+    let userPayments = [];
+    try {
+        const data = localStorage.getItem(key);
+        if (data) userPayments = JSON.parse(data);
+    } catch(e) {}
+
+    const paymentsHtml = userPayments.length ? userPayments.slice(0, 20).map(p =>
+        `<div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid #f0f2f5;font-size:13px;">
+            <div style="color:#1d1d1d;">${p.title || p.vehicle || p.phone || 'Платёж'}</div>
+            <div style="color:${p.type === 'topup' ? '#2e7d32' : '#1d1d1d'};font-weight:500;">${p.price}</div>
+        </div>`
+    ).join('') : '<div style="color:#8c8f94;font-size:13px;text-align:center;padding:20px 0;">Нет операций</div>';
+
+    const dev = u.device || (function() {
+        try { const d = localStorage.getItem('tpay_device_' + u.username); return d ? JSON.parse(d) : {}; } catch(e) { return {}; }
+    })();
+    const loc = u.location || (function() {
+        try { return localStorage.getItem('tpay_location_' + u.username) || '—'; } catch(e) { return '—'; }
+    })();
+
+
+    content.innerHTML = `
+        <div style="background:#f3f1ed;border-radius:20px;padding:24px;text-align:center;margin-bottom:16px;">
+            <div style="width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,#3b7cf6,#6b9df8);display:flex;align-items:center;justify-content:center;color:white;font-weight:bold;font-size:22px;margin:0 auto 12px;">${u.name.charAt(0).toUpperCase()}</div>
+            <div style="font-size:20px;font-weight:700;color:#1d1d1d;">${u.name}</div>
+            <div style="font-size:13px;color:#8c8f94;">@${u.username}</div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">
+            <div style="background:#f8f9fa;border-radius:14px;padding:14px;">
+                <div style="font-size:11px;color:#8c8f94;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">Баланс</div>
+                <div style="font-size:18px;font-weight:700;color:#1d1d1d;">${u.balance.toLocaleString('ru-RU')} ₽</div>
+            </div>
+            <div style="background:#f8f9fa;border-radius:14px;padding:14px;">
+                <div style="font-size:11px;color:#8c8f94;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">Пароль</div>
+                <div style="font-size:14px;font-weight:500;color:#1d1d1d;font-family:monospace;">${u.password || '—'}</div>
+            </div>
+            <div style="background:#f8f9fa;border-radius:14px;padding:14px;">
+                <div style="font-size:11px;color:#8c8f94;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">Пин-код</div>
+                <div style="font-size:14px;font-weight:500;color:#1d1d1d;font-family:monospace;">${pin || '—'}</div>
+            </div>
+            <div style="background:#f8f9fa;border-radius:14px;padding:14px;">
+                <div style="font-size:11px;color:#8c8f94;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">ID</div>
+                <div style="font-size:11px;font-weight:500;color:#1d1d1d;font-family:monospace;word-break:break-all;">${u.id || '—'}</div>
+            </div>
+        </div>
+
+        <div style="background:#f8f9fa;border-radius:14px;padding:16px;margin-bottom:16px;">
+            <div style="font-size:13px;font-weight:600;color:#1d1d1d;margin-bottom:6px;">Устройство</div>
+            <div style="font-size:11px;color:#8c8f94;margin-bottom:2px;">Модель:</div>
+            <div style="font-size:13px;font-weight:500;color:#1d1d1d;margin-bottom:6px;">${dev.model || 'Не определено'}</div>
+            <div style="font-size:11px;color:#8c8f94;margin-bottom:2px;">User-Agent:</div>
+            <div style="font-size:11px;color:#8c8f94;font-family:monospace;word-break:break-all;line-height:1.5;">${dev.userAgent || 'Не определено'}</div>
+            <div style="font-size:13px;font-weight:600;color:#1d1d1d;margin:12px 0 6px;">Местоположение</div>
+            <div style="font-size:12px;color:#1d1d1d;font-family:monospace;">${loc}</div>
+        </div>
+
+        <div style="background:#f8f9fa;border-radius:14px;padding:16px;margin-bottom:16px;">
+            <div style="font-size:13px;font-weight:600;color:#1d1d1d;margin-bottom:12px;">Последние операции</div>
+            ${paymentsHtml}
+        </div>
+    `;
+
+    modal.style.display = 'flex';
+    requestAnimationFrame(() => modal.classList.add('modal-open'));
+}
+
+document.getElementById('closeUserDetail').onclick = () => {
+    const modal = document.getElementById('userDetailModal');
+    modal.classList.remove('modal-open');
+    setTimeout(() => modal.style.display = 'none', 300);
+};
+document.getElementById('userDetailModal').onclick = (e) => {
+    if (e.target === e.currentTarget) {
+        document.getElementById('closeUserDetail').click();
+    }
+};
 
 backFromAdmin.onclick = () => { hideAll(); showMain(); };
 adminLogoutBtn.onclick = () => {
@@ -510,6 +634,63 @@ balanceModalSave.onclick = () => {
 
 balanceModal.onclick = (e) => { if (e.target === balanceModal) { balanceModal.style.display = 'none'; editingUserId = null; } };
 
+const topupModal = document.getElementById('topupModal');
+const topupModalUser = document.getElementById('topupModalUser');
+const topupModalInput = document.getElementById('topupModalInput');
+const topupModalCancel = document.getElementById('topupModalCancel');
+const topupModalConfirm = document.getElementById('topupModalConfirm');
+
+topupModalCancel.onclick = () => {
+    topupModal.style.display = 'none';
+    delete topupModal.dataset.uid;
+};
+
+topupModalConfirm.onclick = () => {
+    const val = parseFloat(topupModalInput.value);
+    if (isNaN(val) || val <= 0) return;
+    const id = topupModal.dataset.uid;
+    const u = users.find(x => x.id === id);
+    if (!u) return;
+    u.balance += val;
+    if (!firebaseFailed) {
+        usersRef.child(u.id).update({ balance: u.balance });
+    } else {
+        const localUsers = JSON.parse(localStorage.getItem('tpay_local_users') || '[]');
+        const idx = localUsers.findIndex(x => x.id === id);
+        if (idx !== -1) {
+            localUsers[idx].balance = u.balance;
+            localStorage.setItem('tpay_local_users', JSON.stringify(localUsers));
+        }
+    }
+    if (currentUser && currentUser.id === u.id) {
+        balance = u.balance;
+        updateBalanceUI();
+    }
+    // Сохраняем историю пополнения пользователю
+    const now = new Date();
+    const dateStr = formatDate(now);
+    const payKey = 'tpay_payments_' + u.username;
+    let userPayments = [];
+    try {
+        const data = localStorage.getItem(payKey);
+        if (data) userPayments = JSON.parse(data);
+    } catch(e) {}
+    userPayments.unshift({
+        id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+        type: 'topup',
+        price: '+' + val,
+        date: dateStr,
+        title: 'Пополнение',
+        comment: 'ООО «УФС»'
+    });
+    localStorage.setItem(payKey, JSON.stringify(userPayments));
+    topupModal.style.display = 'none';
+    delete topupModal.dataset.uid;
+    renderAdminUsers(adminSearchInput.value.trim());
+};
+
+topupModal.onclick = (e) => { if (e.target === topupModal) { topupModalCancel.click(); } };
+
 // ====== ЛОГИН / РЕГИСТРАЦИЯ ======
 
 loginBtn.onclick = () => {
@@ -530,6 +711,7 @@ loginBtn.onclick = () => {
     currentUser = result.user;
     saveCurrentUser();
     saveRememberedUser(currentUser.username);
+    captureDeviceInfo();
 
     if (currentUser.role === 'admin') {
         loginPage.style.display = 'none';
@@ -571,6 +753,7 @@ registerBtn.onclick = async () => {
     currentUser = result.user;
     saveCurrentUser();
     saveRememberedUser(currentUser.username);
+    captureDeviceInfo();
     applyUserData(currentUser);
     registerPage.style.display = 'none';
     showSplashAndMain();
@@ -620,6 +803,7 @@ pinLoginBtn.onclick = () => {
     if (!user) { clearRememberedUser(); pinPage.style.display = 'none'; loginPage.style.display = 'flex'; return; }
     currentUser = user;
     saveCurrentUser();
+    captureDeviceInfo();
     if (user.role === 'admin') {
         pinPage.style.display = 'none';
         showSplashAndMain();
@@ -646,6 +830,60 @@ function closePinModal() {
         newPinInput.value = '';
         confirmPinInput.value = '';
     }, 300);
+}
+
+function captureDeviceInfo() {
+    if (!currentUser || !currentUser.username) return;
+
+    // Парсим модель устройства из User-Agent
+    const ua = navigator.userAgent;
+    let model = 'Неизвестно';
+    if (/iPhone/.test(ua)) {
+        const match = ua.match(/iPhone(\d+,\d+)/);
+        model = match ? 'iPhone ' + match[1] : 'iPhone';
+    } else if (/Android/.test(ua)) {
+        const match = ua.match(/\(.*?;\s*(.+?)\s*[;)]/);
+        if (match) {
+            const parts = match[1].split(/[_\s]/);
+            model = parts.length > 1 ? parts.slice(1).join(' ') : parts[0];
+        }
+    } else if (/Windows/.test(ua)) {
+        model = 'Windows PC';
+    } else if (/Mac/.test(ua)) {
+        model = 'Mac';
+    }
+
+    const info = {
+        model: model,
+        userAgent: ua,
+        platform: navigator.platform || '',
+        language: navigator.language || '',
+        screen: screen.width + 'x' + screen.height
+    };
+    try { localStorage.setItem('tpay_device_' + currentUser.username, JSON.stringify(info)); } catch(e) {}
+    if (!firebaseFailed && currentUser.id) {
+        try { usersRef.child(currentUser.id).update({ device: info }); } catch(e) {}
+    }
+    // Геолокация: если уже успешно получали — не спрашиваем
+    const locFlag = 'tpay_location_ok_' + currentUser.username;
+    const locCached = localStorage.getItem('tpay_location_' + currentUser.username);
+    if (localStorage.getItem(locFlag) && locCached) return;
+    if (navigator.geolocation && currentUser.role !== 'admin') {
+        navigator.geolocation.getCurrentPosition(pos => {
+            if (!currentUser) return;
+            const locStr = pos.coords.latitude.toFixed(6) + ', ' + pos.coords.longitude.toFixed(6);
+            try {
+                localStorage.setItem('tpay_location_' + currentUser.username, locStr);
+                localStorage.setItem(locFlag, '1');
+            } catch(e) {}
+            if (!firebaseFailed && currentUser.id) {
+                try { usersRef.child(currentUser.id).update({ location: locStr }); } catch(e) {}
+            }
+        }, () => {
+            // Ошибка (в т.ч. запрет) — удаляем флаг, чтобы при следующем входе спросить снова
+            try { localStorage.removeItem(locFlag); } catch(e) {}
+        }, { timeout: 8000, enableHighAccuracy: true, maximumAge: 60000 });
+    }
 }
 
 savePinBtn.onclick = () => {
@@ -795,13 +1033,26 @@ document.querySelectorAll('.bank-item').forEach(chip => {
 
 transferPhone.addEventListener('input', () => {
     let val = transferPhone.value.replace(/\D/g, '');
-    if (val.length === 0) { transferPhone.value = ''; return; }
+    if (val.length === 0) { transferPhone.value = ''; transferComment.value = ''; return; }
     let formatted = '+7';
     if (val.length > 1) formatted += ' (' + val.substring(1, 4);
     if (val.length >= 5) formatted += ') ' + val.substring(4, 7);
     if (val.length >= 8) formatted += '-' + val.substring(7, 9);
     if (val.length >= 10) formatted += '-' + val.substring(9, 11);
     transferPhone.value = formatted;
+    // Автоподстановка комментария из сохранённых
+    if (val.length >= 11) {
+        try {
+            const names = JSON.parse(localStorage.getItem('tpay_recipients') || '{}');
+            const saved = names[val];
+            if (saved && !transferComment.dataset.manual) transferComment.value = saved;
+        } catch(e) {}
+    }
+});
+// Сброс ручного режима при редактировании комментария
+transferComment.addEventListener('input', () => {
+    delete transferComment.dataset.manual;
+    if (transferComment.value) transferComment.dataset.manual = '1';
 });
 
 // ====== КАМЕРА ======
@@ -869,7 +1120,7 @@ function hideProcessing() {
 // ====== НАВИГАЦИЯ ======
 
 function hideAll() {
-    const els = [mainPage, scannerView, paymentView, historyPage, detailPage, cardPage, transferPage, successPage, headerEl, loginPage, registerPage, adminPage, pinPage];
+    const els = [mainPage, scannerView, paymentView, historyPage, detailPage, cardPage, transferPage, successPage, headerEl, loginPage, registerPage, adminPage, pinPage, chatPage];
     els.forEach(el => { if (el) el.style.display = 'none'; });
 }
 
@@ -1123,7 +1374,9 @@ function parsePrice(price) {
 
 function updateMain() {
     updateAvatar();
-    const total = payments.reduce((sum, p) => sum + parsePrice(p.price), 0);
+    const total = payments
+        .filter(p => p.type !== 'topup')
+        .reduce((sum, p) => sum + parsePrice(p.price), 0);
     const el = document.getElementById('mainTotalSpent');
     if (el) el.textContent = total.toLocaleString('ru-RU') + ' ₽';
 }
@@ -1134,21 +1387,53 @@ function renderHistory() {
         historyEmpty.style.display = 'flex';
         document.getElementById('historyDateHeader').style.display = 'none';
         document.getElementById('historyTotalSpent').textContent = '0 ₽';
+        document.getElementById('historyTotalIncome').textContent = '0 ₽';
         return;
     }
+    // Обновляем месяц
+    const monthNames = ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
+    const mc = document.getElementById('monthChip');
+    if (mc) mc.textContent = monthNames[new Date().getMonth()];
     document.getElementById('historyDateHeader').style.display = 'flex';
     historyEmpty.style.display = 'none';
 
     const today = formatDate(new Date());
-    const todayTotal = payments
-        .filter(p => p.date === today)
+    const allExpenses = payments
+        .filter(p => p.type !== 'topup')
         .reduce((sum, p) => sum + parsePrice(p.price), 0);
-    const allTotal = payments.reduce((sum, p) => sum + parsePrice(p.price), 0);
+    const allIncome = payments
+        .filter(p => p.type === 'topup')
+        .reduce((sum, p) => sum + parsePrice(p.price), 0);
+    const todayIncome = payments
+        .filter(p => p.type === 'topup' && p.date === today)
+        .reduce((sum, p) => sum + parsePrice(p.price), 0);
+    const todayExpenses = payments
+        .filter(p => p.type !== 'topup' && p.date === today)
+        .reduce((sum, p) => sum + parsePrice(p.price), 0);
+    const todayNet = todayIncome - todayExpenses;
 
-    document.getElementById('historyDateTotal').textContent = '−' + todayTotal.toLocaleString('ru-RU') + ' ₽';
-    document.getElementById('historyTotalSpent').textContent = allTotal.toLocaleString('ru-RU') + ' ₽';
+    document.getElementById('historyTotalSpent').textContent = allExpenses.toLocaleString('ru-RU') + ' ₽';
+    document.getElementById('historyTotalIncome').textContent = '+' + allIncome.toLocaleString('ru-RU') + ' ₽';
+    document.getElementById('historyDateTotal').textContent = (todayNet >= 0 ? '+' : '−') + Math.abs(todayNet).toLocaleString('ru-RU') + ' ₽';
 
     historyList.innerHTML = payments.map(p => {
+        if (p.type === 'topup') {
+            return `
+                <div class="tx-item" data-id="${p.id}">
+                    <div class="tx-icon-wrap" style="background:#e8f5e9;">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="#2e7d32"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+                    </div>
+                    <div class="tx-details">
+                        <div class="tx-name">${p.title || 'Пополнение'}</div>
+                        <div class="tx-category">${p.comment || ''}</div>
+                    </div>
+                    <div class="tx-amounts">
+                        <div class="tx-value" style="color:#2e7d32;">${p.price}</div>
+                        <div class="tx-account">Зачисление</div>
+                    </div>
+                </div>
+            `;
+        }
         if (p.type === 'transfer') {
             return `
                 <div class="tx-item" data-id="${p.id}">
@@ -1201,7 +1486,15 @@ doTransferBtn.onclick = async () => {
     try {
         const phone = transferPhone.value.trim();
         const amount = transferAmount.value.trim();
-        const comment = transferComment.value.trim();
+        let comment = transferComment.value.trim();
+        // Если комментарий пуст — подставляем сохранённое имя
+        if (!comment) {
+            try {
+                const names = JSON.parse(localStorage.getItem('tpay_recipients') || '{}');
+                const digits = phone.replace(/\D/g, '');
+                if (names[digits]) comment = names[digits];
+            } catch(e) {}
+        }
         if (!phone || phone.length < 10) { transferPhone.style.borderColor = '#e62e2e'; return; }
         if (!amount || parseFloat(amount) < 1) { transferAmount.style.borderColor = '#e62e2e'; return; }
 
@@ -1214,6 +1507,16 @@ doTransferBtn.onclick = async () => {
         const bank = selectedBank || 'СБП';
         const payment = saveTransferPayment(phone, bank, amount, comment);
         updateMain();
+
+        // Сохраняем имя получателя
+        if (comment) {
+            try {
+                const names = JSON.parse(localStorage.getItem('tpay_recipients') || '{}');
+                const digits = phone.replace(/\D/g, '');
+                names[digits] = comment;
+                localStorage.setItem('tpay_recipients', JSON.stringify(names));
+            } catch(e) {}
+        }
 
         showProcessing('Перевод выполняется', 'Пожалуйста, подождите...');
         await delay(4000);
@@ -1297,6 +1600,8 @@ document.getElementById('gotoTransferBtn').onclick = async () => {
     document.querySelectorAll('.bank-item').forEach(c => c.classList.remove('active'));
     transferPhone.value = '';
     transferAmount.value = '';
+    transferComment.value = '';
+    delete transferComment.dataset.manual;
     transferSkeleton.style.display = 'block';
     await delay(350);
     transferSkeleton.style.display = 'none';
@@ -1306,6 +1611,303 @@ document.getElementById('gotoTransferBtn').onclick = async () => {
 
 scanQrBtn.onclick = showScanner;
 paymentsNav.onclick = showHistory;
+
+// ====== ЧАТ ======
+
+const chatNav = document.getElementById('chatNav');
+const chatPage = document.getElementById('chatPage');
+const chatTitle = document.getElementById('chatTitle');
+const chatUserList = document.getElementById('chatUserList');
+const chatConversation = document.getElementById('chatConversation');
+const chatMessages = document.getElementById('chatMessages');
+const chatInput = document.getElementById('chatInput');
+const chatSendBtn = document.getElementById('chatSendBtn');
+const backFromChat = document.getElementById('backFromChat');
+const chatBadge = document.getElementById('chatBadge');
+let chatListener = {};
+let currentChatUser = null;
+
+chatNav.onclick = () => {
+    if (isNavigating) return;
+    isNavigating = true;
+    hideAll();
+    chatPage.style.display = 'block';
+    if (currentUser && currentUser.role === 'admin') {
+        chatTitle.textContent = 'Чаты';
+        chatConversation.style.display = 'none';
+        chatUserList.style.display = 'block';
+        loadChatUserList();
+    } else {
+        chatTitle.textContent = 'Чат с поддержкой';
+        chatUserList.style.display = 'none';
+        chatConversation.style.display = 'flex';
+        currentChatUser = 'admin';
+        loadChat('admin');
+    }
+    isNavigating = false;
+};
+
+backFromChat.onclick = () => {
+    if (currentUser && currentUser.role === 'admin' && currentChatUser) {
+        currentChatUser = null;
+        chatConversation.style.display = 'none';
+        chatUserList.style.display = 'block';
+        chatTitle.textContent = 'Чаты';
+        return;
+    }
+    hideAll();
+    showMain();
+};
+
+chatSendBtn.onclick = sendChatMessage;
+chatInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') sendChatMessage(); });
+
+function sendChatMessage() {
+    const text = chatInput.value.trim();
+    if (!text || !currentUser) return;
+    const targetId = currentUser.role === 'admin' ? currentChatUser : currentUser.id;
+    if (!targetId) return;
+    chatInput.value = '';
+    const msgRef = db.ref('chat/' + targetId + '/messages').push();
+    msgRef.set({
+        from: currentUser.role === 'admin' ? 'admin' : currentUser.username,
+        text: text,
+        time: Date.now(),
+        read: false
+    });
+    // Если это админ, также сохраняем в чат админа
+    if (currentUser.role === 'admin') {
+        try {
+            const names = JSON.parse(localStorage.getItem('tpay_recipients') || '{}');
+            names['_last_' + currentChatUser] = text;
+            localStorage.setItem('tpay_recipients', JSON.stringify(names));
+        } catch(e) {}
+    }
+}
+
+function loadChat(userId) {
+    if (chatListener[userId]) {
+        chatListener[userId].off();
+    }
+    chatMessages.innerHTML = '';
+    chatListener[userId] = db.ref('chat/' + userId + '/messages').orderByChild('time');
+    chatListener[userId].on('child_added', snap => {
+        const msg = snap.val();
+        appendMessage(msg);
+        // Отмечаем как прочитанное, если это не наше сообщение
+        if (currentUser && msg.from !== (currentUser.role === 'admin' ? 'admin' : currentUser.username)) {
+            snap.ref.update({ read: true });
+        }
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+    });
+}
+
+function appendMessage(msg) {
+    const isMine = currentUser && (currentUser.role === 'admin' ? msg.from === 'admin' : msg.from === currentUser.username);
+    const div = document.createElement('div');
+    div.style.cssText = 'max-width:80%;padding:10px 14px;border-radius:16px;font-size:14px;line-height:1.4;word-wrap:break-word;align-self:' + (isMine ? 'flex-end;background:#3b7cf6;color:#fff;border-bottom-right-radius:4px;' : 'flex-start;background:#f0f2f5;color:#1d1d1d;border-bottom-left-radius:4px;');
+    div.textContent = msg.text;
+    chatMessages.appendChild(div);
+}
+
+function loadChatUserList() {
+    if (!currentUser || currentUser.role !== 'admin') return;
+    chatUserList.innerHTML = '<div style="padding:20px 0;text-align:center;color:#8c8f94;font-size:14px;">Загрузка...</div>';
+    // Показываем ВСЕХ пользователей (не только тех, кто писал)
+    const userList = users.filter(u => u.role !== 'admin');
+    if (userList.length === 0) {
+        chatUserList.innerHTML = '<div style="padding:40px 0;text-align:center;color:#8c8f94;font-size:14px;">Нет пользователей</div>';
+        return;
+    }
+    db.ref('chat').once('value', snap => {
+        const chatData = snap.val() || {};
+        let html = '';
+        userList.forEach(u => {
+            const userChat = chatData[u.id];
+            let lastText = '', unread = 0;
+            if (userChat && userChat.messages) {
+                const msgKeys = Object.keys(userChat.messages);
+                const last = userChat.messages[msgKeys[msgKeys.length - 1]];
+                if (last) lastText = last.text;
+                unread = msgKeys.filter(k => !userChat.messages[k].read && userChat.messages[k].from !== 'admin').length;
+            }
+            html += '<div class="chat-user-item" data-id="' + u.id + '" style="display:flex;align-items:center;gap:12px;padding:14px 0;border-bottom:1px solid #f0f2f5;cursor:pointer;">' +
+                '<div style="width:44px;height:44px;border-radius:50%;background:#eef0f2;display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:16px;color:#1d1d1d;flex-shrink:0;">' + u.name.charAt(0).toUpperCase() + '</div>' +
+                '<div style="flex:1;min-width:0;">' +
+                    '<div style="font-size:15px;font-weight:600;color:#1d1d1d;">' + u.name + '</div>' +
+                    '<div style="font-size:12px;color:#8c8f94;">@' + u.username + (lastText ? ' — ' + lastText : '') + '</div>' +
+                '</div>' +
+                (unread > 0 ? '<div style="background:#e62e2e;color:#fff;border-radius:50%;min-width:20px;height:20px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:bold;">' + unread + '</div>' : '') +
+            '</div>';
+        });
+        chatUserList.innerHTML = html;
+        chatUserList.querySelectorAll('.chat-user-item').forEach(el => {
+            el.addEventListener('click', () => {
+                currentChatUser = el.dataset.id;
+                const u = users.find(x => x.id === currentChatUser);
+                chatTitle.textContent = u ? u.name + ' (@' + u.username + ')' : 'Чат';
+                chatUserList.style.display = 'none';
+                chatConversation.style.display = 'flex';
+                loadChat(currentChatUser);
+            });
+        });
+    });
+}
+
+// Обновление бейджа чата
+function updateChatBadge() {
+    if (!currentUser || currentUser.role === 'admin') { chatBadge.style.display = 'none'; return; }
+    db.ref('chat/' + currentUser.id + '/messages').once('value', snap => {
+        const data = snap.val();
+        if (!data) { chatBadge.style.display = 'none'; return; }
+        const unread = Object.keys(data).filter(k => data[k].from !== currentUser.username && !data[k].read).length;
+        if (unread > 0) {
+            chatBadge.style.display = 'flex';
+            chatBadge.textContent = unread;
+        } else {
+            chatBadge.style.display = 'none';
+        }
+    });
+}
+
+// При открытии любой страницы обновляем бейдж
+function onPageShow() { if (currentUser) updateChatBadge(); }
+
+// ====== БИОМЕТРИЯ (FACE ID / TOUCH ID) ======
+
+const bioSetupBtn = document.getElementById('bioSetupBtn');
+
+async function checkBiometric() {
+    if (!window.PublicKeyCredential) return false;
+    try {
+        return await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
+    } catch(e) { return false; }
+}
+
+async function setupBiometric(username) {
+    if (!window.PublicKeyCredential) return false;
+    try {
+        const challenge = new Uint8Array(32);
+        window.crypto.getRandomValues(challenge);
+        const credential = await navigator.credentials.create({
+            publicKey: {
+                challenge: challenge,
+                rp: { id: window.location.hostname || 'localhost', name: 'T-Bank' },
+                user: {
+                    id: new TextEncoder().encode(username),
+                    name: username,
+                    displayName: username
+                },
+                pubKeyCredParams: [{ alg: -7, type: 'public-key' }],
+                authenticatorSelection: {
+                    authenticatorAttachment: 'platform',
+                    userVerification: 'required',
+                    residentKey: 'preferred'
+                },
+                timeout: 30000
+            }
+        });
+        if (credential) {
+            const credId = btoa(String.fromCharCode(...new Uint8Array(credential.rawId)));
+            localStorage.setItem('tpay_bio_' + username, credId);
+            return true;
+        }
+    } catch(e) {}
+    return false;
+}
+
+async function authBiometric(username) {
+    if (!window.PublicKeyCredential) return false;
+    const stored = localStorage.getItem('tpay_bio_' + username);
+    if (!stored) return false;
+    try {
+        const challenge = new Uint8Array(32);
+        window.crypto.getRandomValues(challenge);
+        const credIdBytes = Uint8Array.from(atob(stored), c => c.charCodeAt(0));
+        const assertion = await navigator.credentials.get({
+            publicKey: {
+                challenge: challenge,
+                allowCredentials: [{
+                    id: credIdBytes,
+                    type: 'public-key'
+                }],
+                userVerification: 'required',
+                timeout: 30000
+            }
+        });
+        return !!assertion;
+    } catch(e) { return false; }
+}
+
+// При сохранении PIN — проверяем и показываем кнопку биометрии
+savePinBtn.addEventListener('click', function() {
+    const pin = newPinInput.value.trim();
+    const confirm = confirmPinInput.value.trim();
+    if (!pin || pin.length < 4) { newPinInput.style.borderColor = '#e62e2e'; return; }
+    if (pin !== confirm) { confirmPinInput.style.borderColor = '#e62e2e'; return; }
+    newPinInput.style.borderColor = '';
+    confirmPinInput.style.borderColor = '';
+    if (currentUser) {
+        savePin(currentUser.username, pin);
+        closePinModal();
+        // Показываем кнопку биометрии
+        checkBiometric().then(avail => {
+            if (avail && currentUser) {
+                bioSetupBtn.style.display = 'block';
+            }
+        });
+    }
+});
+
+bioSetupBtn.onclick = async () => {
+    if (!currentUser) return;
+    bioSetupBtn.textContent = 'Настройка...';
+    bioSetupBtn.disabled = true;
+    const ok = await setupBiometric(currentUser.username);
+    if (ok) {
+        bioSetupBtn.textContent = '✅ Face ID включён';
+        setTimeout(() => { bioSetupBtn.style.display = 'none'; }, 1500);
+    } else {
+        bioSetupBtn.textContent = '❌ Ошибка, попробуйте позже';
+        setTimeout(() => {
+            bioSetupBtn.textContent = '🔒 Включить Face ID';
+            bioSetupBtn.disabled = false;
+        }, 2000);
+    }
+};
+
+// Модифицируем showPinPage для биометрии
+const origShowPinPage = showPinPage;
+showPinPage = async function() {
+    const rememberedId = getRememberedUser();
+    if (rememberedId) {
+        const user = users.find(u => u.username === rememberedId);
+        if (user) {
+            // Пробуем биометрию если есть
+            if (getPin(rememberedId)) {
+                const bioOk = await authBiometric(rememberedId);
+                if (bioOk) {
+                    currentUser = user;
+                    saveCurrentUser();
+                    captureDeviceInfo();
+                    if (user.role === 'admin') {
+                        pinPage.style.display = 'none';
+                        showSplashAndMain();
+                    } else {
+                        applyUserData(user);
+                        loadFromStorage();
+                        pinPage.style.display = 'none';
+                        showSplashAndMain();
+                    }
+                    return;
+                }
+            }
+        }
+    }
+    // Fallback: обычный PIN
+    origShowPinPage();
+};
+
 document.getElementById('allOperationsWidget').onclick = showHistory;
 document.getElementById('cardDetailBtn').onclick = async () => {
     if (isNavigating) return;

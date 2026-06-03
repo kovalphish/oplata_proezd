@@ -1,5 +1,7 @@
 /* ============ ОРИГИНАЛЬНЫЕ СТИЛИ ============ */
 
+/* ============ ОРИГИНАЛЬНЫЕ СТИЛИ ============ */
+
 html, body {
     height: 100%;
     width: 100%;
@@ -459,14 +461,14 @@ body {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 20px 20px 15px;
+    padding: 16px 20px 12px;
     background: transparent;
 }
 
 #mainPage .user-profile {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 10px;
 }
 
 #mainPage .avatar {
@@ -481,6 +483,7 @@ body {
     font-weight: bold;
     font-size: 18px;
     flex-shrink: 0;
+    line-height: 1;
 }
 
 #mainPage .user-name {
@@ -1846,6 +1849,27 @@ body {
     border-radius: 10px;
     transform: rotate(15deg);
     margin-top: 20px;
+}
+
+/* ============ ЧАТ ============ */
+
+#chatPage .app {
+    background: #fff;
+    min-height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+.chat-user-item:hover {
+    background: #f8f9fa;
+}
+
+.chat-user-item:active {
+    background: #f0f2f5;
+}
+
+#chatMessages {
+    scroll-behavior: smooth;
 }
 
 /* ============ СТРАНИЦА ПЕРЕВОДА (trans.html) ============ */
