@@ -483,8 +483,14 @@ function showAdmin() {
     isNavigating = true;
     stopScanning();
     hideAll();
-    renderAdminUsers();
-    adminPage.style.display = 'block';
+    try {
+        renderAdminUsers();
+        adminPage.style.display = 'block';
+    } catch(e) {
+        console.error('showAdmin error:', e);
+        adminUsersList.innerHTML = '<div style="text-align:center;padding:60px 20px;color:#e62e2e;font-size:14px;">Ошибка загрузки: ' + e.message + '</div>';
+        adminPage.style.display = 'block';
+    }
     isNavigating = false;
     // Если пользователей нет — пытаемся догрузить
     if (users.filter(u => u.role === 'user').length === 0) {
@@ -493,94 +499,100 @@ function showAdmin() {
 }
 
 function renderAdminUsers(filter) {
-    let list = users.filter(u => u.role === 'user');
-    if (filter) {
-        const q = filter.toLowerCase();
-        list = list.filter(u => u.name.toLowerCase().includes(q) || u.username.toLowerCase().includes(q));
-    }
-    if (list.length === 0) {
-        adminUsersList.innerHTML = '<div style="text-align:center;padding:60px 0;color:#8c8f94;font-size:15px;">Нет пользователей</div>';
-        return;
-    }
-    adminUsersList.innerHTML = list.map(u => {
-        const pin = u.pin || getPin(u.username);
-        const pinDisplay = pin ? pin : '—';
-        return `
-        <div class="admin-user-card" data-id="${u.id}" style="background:#fff;border-radius:20px;padding:20px;margin-bottom:14px;box-shadow:0 4px 20px rgba(0,0,0,0.04);cursor:pointer;">
-            <div style="display:flex;align-items:center;gap:14px;margin-bottom:16px;">
-                <div style="width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,#3b7cf6,#6b9df8);display:flex;align-items:center;justify-content:center;color:white;font-weight:bold;font-size:18px;flex-shrink:0;">${u.name.charAt(0).toUpperCase()}</div>
-                <div style="flex:1;">
-                    <div style="font-size:16px;font-weight:600;color:#1d1d1d;">${u.name}</div>
-                    <div style="font-size:12px;color:#8c8f94;">@${u.username}</div>
+    try {
+        let list = users.filter(u => u && u.role === 'user');
+        if (filter) {
+            const q = filter.toLowerCase();
+            list = list.filter(u => (u.name || '').toLowerCase().includes(q) || (u.username || '').toLowerCase().includes(q));
+        }
+        if (list.length === 0) {
+            adminUsersList.innerHTML = '<div style="text-align:center;padding:60px 0;color:#8c8f94;font-size:15px;">Нет пользователей</div>';
+            return;
+        }
+        adminUsersList.innerHTML = list.map(u => {
+            const pin = u.pin || getPin(u.username);
+            const pinDisplay = pin ? pin : '—';
+            const bal = typeof u.balance === 'number' ? u.balance : 0;
+            return `
+            <div class="admin-user-card" data-id="${u.id}" style="background:#fff;border-radius:20px;padding:20px;margin-bottom:14px;box-shadow:0 4px 20px rgba(0,0,0,0.04);cursor:pointer;">
+                <div style="display:flex;align-items:center;gap:14px;margin-bottom:16px;">
+                    <div style="width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,#3b7cf6,#6b9df8);display:flex;align-items:center;justify-content:center;color:white;font-weight:bold;font-size:18px;flex-shrink:0;">${(u.name || '?').charAt(0).toUpperCase()}</div>
+                    <div style="flex:1;">
+                        <div style="font-size:16px;font-weight:600;color:#1d1d1d;">${u.name || '—'}</div>
+                        <div style="font-size:12px;color:#8c8f94;">@${u.username || '—'}</div>
+                    </div>
+                    <div style="text-align:right;">
+                        <div style="font-size:18px;font-weight:700;color:#1d1d1d;">${bal.toLocaleString('ru-RU')} ₽</div>
+                        <button class="admin-topup-btn" data-id="${u.id}" style="margin-top:4px;padding:6px 16px;border:none;border-radius:10px;background:#e8f5e9;color:#2e7d32;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;">Пополнить</button>
+                        <button class="admin-edit-btn" data-id="${u.id}" style="margin-top:4px;padding:6px 16px;border:none;border-radius:10px;background:#f2f7ff;color:#3b7cf6;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;margin-left:4px;">Изменить</button>
+                        <button class="admin-delete-btn" data-id="${u.id}" style="margin-top:4px;padding:6px 16px;border:none;border-radius:10px;background:#fff0f0;color:#e62e2e;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;margin-left:4px;">Удалить</button>
+                    </div>
                 </div>
-                <div style="text-align:right;">
-                    <div style="font-size:18px;font-weight:700;color:#1d1d1d;">${u.balance.toLocaleString('ru-RU')} ₽</div>
-                    <button class="admin-topup-btn" data-id="${u.id}" style="margin-top:4px;padding:6px 16px;border:none;border-radius:10px;background:#e8f5e9;color:#2e7d32;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;">Пополнить</button>
-                    <button class="admin-edit-btn" data-id="${u.id}" style="margin-top:4px;padding:6px 16px;border:none;border-radius:10px;background:#f2f7ff;color:#3b7cf6;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;margin-left:4px;">Изменить</button>
-                    <button class="admin-delete-btn" data-id="${u.id}" style="margin-top:4px;padding:6px 16px;border:none;border-radius:10px;background:#fff0f0;color:#e62e2e;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;margin-left:4px;">Удалить</button>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;padding-top:14px;border-top:1px solid #f0f2f5;">
+                    <div>
+                        <div style="font-size:11px;color:#8c8f94;margin-bottom:2px;text-transform:uppercase;letter-spacing:0.5px;">Пароль</div>
+                        <div style="font-size:14px;color:#1d1d1d;font-weight:500;font-family:monospace;">${u.password || '—'}</div>
+                    </div>
+                    <div>
+                        <div style="font-size:11px;color:#8c8f94;margin-bottom:2px;text-transform:uppercase;letter-spacing:0.5px;">Пин-код</div>
+                        <div style="font-size:14px;color:#1d1d1d;font-weight:500;font-family:monospace;">${pinDisplay}</div>
+                    </div>
                 </div>
             </div>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;padding-top:14px;border-top:1px solid #f0f2f5;">
-                <div>
-                    <div style="font-size:11px;color:#8c8f94;margin-bottom:2px;text-transform:uppercase;letter-spacing:0.5px;">Пароль</div>
-                    <div style="font-size:14px;color:#1d1d1d;font-weight:500;font-family:monospace;">${u.password || '—'}</div>
-                </div>
-                <div>
-                    <div style="font-size:11px;color:#8c8f94;margin-bottom:2px;text-transform:uppercase;letter-spacing:0.5px;">Пин-код</div>
-                    <div style="font-size:14px;color:#1d1d1d;font-weight:500;font-family:monospace;">${pinDisplay}</div>
-                </div>
-            </div>
-        </div>
-    `}).join('');
-
-    adminUsersList.querySelectorAll('.admin-user-card').forEach(card => {
-        card.addEventListener('click', (e) => {
-            if (e.target.closest('.admin-edit-btn') || e.target.closest('.admin-delete-btn') || e.target.closest('.admin-topup-btn')) return;
-            const id = card.dataset.id;
-            const u = users.find(x => x.id === id);
-            if (u) showUserDetail(u);
+        `}).join('');
+    
+        adminUsersList.querySelectorAll('.admin-user-card').forEach(card => {
+            card.addEventListener('click', (e) => {
+                if (e.target.closest('.admin-edit-btn') || e.target.closest('.admin-delete-btn') || e.target.closest('.admin-topup-btn')) return;
+                const id = card.dataset.id;
+                const u = users.find(x => x.id === id);
+                if (u) showUserDetail(u);
+            });
         });
-    });
-
-    adminUsersList.querySelectorAll('.admin-edit-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-            editingUserId = btn.dataset.id;
-            const u = users.find(x => x.id === editingUserId);
-            if (!u) return;
-            balanceModalUser.textContent = u.name + ' (' + u.username + ')';
-            balanceModalInput.value = '';
-            balanceModalInput.placeholder = 'Текущий: ' + u.balance.toLocaleString('ru-RU') + ' ₽';
-            balanceModal.style.display = 'flex';
+    
+        adminUsersList.querySelectorAll('.admin-edit-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                editingUserId = btn.dataset.id;
+                const u = users.find(x => x.id === editingUserId);
+                if (!u) return;
+                balanceModalUser.textContent = u.name + ' (' + u.username + ')';
+                balanceModalInput.value = '';
+                balanceModalInput.placeholder = 'Текущий: ' + (typeof u.balance === 'number' ? u.balance.toLocaleString('ru-RU') : '0') + ' ₽';
+                balanceModal.style.display = 'flex';
+            });
         });
-    });
-    adminUsersList.querySelectorAll('.admin-delete-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-            const id = btn.dataset.id;
-            const u = users.find(x => x.id === id);
-            if (!u || u.role === 'admin') return;
-            if (!confirm('Удалить пользователя ' + u.name + ' (' + u.username + ')?')) return;
-            if (!firebaseFailed) {
-                usersRef.child(id).remove();
-            } else {
-                const localUsers = JSON.parse(localStorage.getItem('tpay_local_users') || '[]');
-                const filtered = localUsers.filter(x => x.id !== id);
-                localStorage.setItem('tpay_local_users', JSON.stringify(filtered));
-            }
-            removePin(u.username);
-            renderAdminUsers(adminSearchInput.value.trim());
+        adminUsersList.querySelectorAll('.admin-delete-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const id = btn.dataset.id;
+                const u = users.find(x => x.id === id);
+                if (!u || u.role === 'admin') return;
+                if (!confirm('Удалить пользователя ' + u.name + ' (' + u.username + ')?')) return;
+                if (!firebaseFailed) {
+                    usersRef.child(id).remove();
+                } else {
+                    const localUsers = JSON.parse(localStorage.getItem('tpay_local_users') || '[]');
+                    const filtered = localUsers.filter(x => x.id !== id);
+                    localStorage.setItem('tpay_local_users', JSON.stringify(filtered));
+                }
+                removePin(u.username);
+                renderAdminUsers(adminSearchInput.value.trim());
+            });
         });
-    });
-    adminUsersList.querySelectorAll('.admin-topup-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-            const id = btn.dataset.id;
-            const u = users.find(x => x.id === id);
-            if (!u || u.role === 'admin') return;
-            topupModalUser.textContent = u.name + ' (' + u.username + ') — баланс: ' + u.balance.toLocaleString('ru-RU') + ' ₽';
-            topupModalInput.value = '';
-            topupModal.dataset.uid = id;
-            topupModal.style.display = 'flex';
+        adminUsersList.querySelectorAll('.admin-topup-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const id = btn.dataset.id;
+                const u = users.find(x => x.id === id);
+                if (!u || u.role === 'admin') return;
+                topupModalUser.textContent = u.name + ' (' + u.username + ') — баланс: ' + (typeof u.balance === 'number' ? u.balance.toLocaleString('ru-RU') : '0') + ' ₽';
+                topupModalInput.value = '';
+                topupModal.dataset.uid = id;
+                topupModal.style.display = 'flex';
+            });
         });
-    });
+    } catch(e) {
+        console.error('renderAdminUsers error:', e);
+        adminUsersList.innerHTML = '<div style="text-align:center;padding:60px 20px;color:#e62e2e;font-size:14px;">Ошибка: ' + e.message + '</div>';
+    }
 }
 
 function showUserDetail(u) {
