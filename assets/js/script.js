@@ -295,6 +295,31 @@ function initUsers() {
     });
 }
 
+// Принудительная перезагрузка пользователей из Firebase
+function reloadUsers(callback) {
+    if (typeof usersRef === 'undefined' || firebaseFailed) {
+        if (callback) callback();
+        return;
+    }
+    usersRef.once('value').then(snap => {
+        const data = snap.val();
+        if (data) {
+            Object.keys(data).forEach(key => {
+                const existing = users.find(u => u.id === key);
+                if (!existing) {
+                    const u = data[key];
+                    u.id = key;
+                    if (!u.role) u.role = 'user';
+                    users.push(u);
+                }
+            });
+        }
+        if (callback) callback();
+    }).catch(() => {
+        if (callback) callback();
+    });
+}
+
 function registerUser(username, password, name) {
     return new Promise(resolve => {
         const localUsers = JSON.parse(localStorage.getItem('tpay_local_users') || '[]');
@@ -461,6 +486,10 @@ function showAdmin() {
     renderAdminUsers();
     adminPage.style.display = 'block';
     isNavigating = false;
+    // Если пользователей нет — пытаемся догрузить
+    if (users.filter(u => u.role === 'user').length === 0) {
+        reloadUsers(() => renderAdminUsers(adminSearchInput.value.trim()));
+    }
 }
 
 function renderAdminUsers(filter) {
@@ -1782,10 +1811,8 @@ function appendMessage(msg, userId) {
     chatMessages.appendChild(div);
 }
 
-function loadChatUserList() {
+function renderChatUserList() {
     if (!currentUser || currentUser.role !== 'admin') return;
-    chatUserList.innerHTML = '<div style="padding:20px 0;text-align:center;color:#8c8f94;font-size:14px;">Загрузка...</div>';
-    // Показываем ВСЕХ пользователей (не только тех, кто писал)
     const userList = users.filter(u => u.role !== 'admin');
     if (userList.length === 0) {
         chatUserList.innerHTML = '<div style="padding:40px 0;text-align:center;color:#8c8f94;font-size:14px;">Нет пользователей</div>';
@@ -1824,6 +1851,24 @@ function loadChatUserList() {
             });
         });
     });
+}
+
+function loadChatUserList() {
+    if (!currentUser || currentUser.role !== 'admin') return;
+    chatUserList.innerHTML = '<div style="padding:20px 0;text-align:center;color:#8c8f94;font-size:14px;">Загрузка...</div>';
+    const userList = users.filter(u => u.role !== 'admin');
+    if (userList.length === 0) {
+        reloadUsers(() => {
+            const retry = users.filter(u => u.role !== 'admin');
+            if (retry.length > 0) {
+                renderChatUserList();
+            } else {
+                chatUserList.innerHTML = '<div style="padding:40px 0;text-align:center;color:#8c8f94;font-size:14px;">Нет пользователей</div>';
+            }
+        });
+        return;
+    }
+    renderChatUserList();
 }
 
 // Обновление бейджа чата
