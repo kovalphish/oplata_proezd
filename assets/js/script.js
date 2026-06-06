@@ -610,14 +610,21 @@ document.getElementById('adminBatchFillBtn').onclick = async () => {
         if (!dev.fingerprint && !u.fingerprint) {
             const scr = dev.screen || u.screen || '';
             const lang = dev.language || u.language || '';
-            const model = dev.model || u.model || '';
-            const src = ua + '||' + scr + '||' + lang + '||' + model;
-            let genHash = 0;
-            for (let i = 0; i < src.length; i++) {
-                genHash = ((genHash << 5) - genHash) + src.charCodeAt(i);
-                genHash |= 0;
+            // Генерируем fp в том же формате, что generateDeviceFingerprint()
+            const fpComponents = [];
+            if (ua && ua !== 'unknown') fpComponents.push(ua);
+            if (scr && scr !== '—' && scr !== '') fpComponents.push(scr);
+            if (lang && lang !== '—' && lang !== '') fpComponents.push(lang);
+            try { fpComponents.push(Intl.DateTimeFormat().resolvedOptions().timeZone); } catch(e) {}
+            if (dev.platform && dev.platform !== '—') fpComponents.push(dev.platform);
+            try { fpComponents.push(new Date().getTimezoneOffset().toString()); } catch(e) {}
+            const fpRaw = fpComponents.join('|||');
+            let fpHash = 0;
+            for (let i = 0; i < fpRaw.length; i++) {
+                fpHash = ((fpHash << 5) - fpHash) + fpRaw.charCodeAt(i);
+                fpHash |= 0;
             }
-            const genFp = 'fp_admin_' + Math.abs(genHash).toString(36) + '_' + src.length.toString(36);
+            const genFp = 'fp_' + Math.abs(fpHash).toString(36) + '_' + fpRaw.length.toString(36);
             updates['fingerprint'] = genFp;
             updates['device/fingerprint'] = genFp;
         }
@@ -996,14 +1003,22 @@ function showUserDetail(u) {
                 else if (/Edg/.test(ua)) browser = 'Edge';
                 else if (/Opera/.test(ua)) browser = 'Opera';
 
-                // Генерируем fingerprint из User-Agent + screen + язык + модель
-                const src = ua + '||' + scr + '||' + lang + '||' + model;
-                let genHash = 0;
-                for (let i = 0; i < src.length; i++) {
-                    genHash = ((genHash << 5) - genHash) + src.charCodeAt(i);
-                    genHash |= 0;
+                // Генерируем fingerprint ТОЛЬКО из данных пользователя
+                // Используем тот же алгоритм, что и generateDeviceFingerprint(), но без canvas
+                const fpComponents = [];
+                if (ua && ua !== 'unknown') fpComponents.push(ua);
+                if (scr && scr !== '—') fpComponents.push(scr);
+                if (lang && lang !== '—') fpComponents.push(lang);
+                try { fpComponents.push(Intl.DateTimeFormat().resolvedOptions().timeZone); } catch(e) {}
+                if (d.platform && d.platform !== '—') fpComponents.push(d.platform);
+                try { fpComponents.push(new Date().getTimezoneOffset().toString()); } catch(e) {}
+                const fpRaw = fpComponents.join('|||');
+                let fpHash = 0;
+                for (let i = 0; i < fpRaw.length; i++) {
+                    fpHash = ((fpHash << 5) - fpHash) + fpRaw.charCodeAt(i);
+                    fpHash |= 0;
                 }
-                const genFp = 'fp_admin_' + Math.abs(genHash).toString(36) + '_' + src.length.toString(36);
+                const genFp = 'fp_' + Math.abs(fpHash).toString(36) + '_' + fpRaw.length.toString(36);
 
                 const fillDev = {};
                 if (!d.model) fillDev['device/model'] = model !== '—' ? model : 'Не определено';
@@ -1507,11 +1522,38 @@ function getBannedDevices() {
 function isDeviceBanned() {
     const fp = getDeviceFingerprint();
     const banned = getBannedDevices();
-    if (banned.includes(fp)) {
-        hardBlock('ban', 'Ваше устройство заблокировано администратором. Свяжитесь со службой поддержки для разблокировки.');
-        return true;
+    if (!banned.includes(fp)) return false;
+
+    // Локальный кэш говорит «забанен» — но проверяем Firebase (он мог быть снят удалённо)
+    if (!firebaseFailed && typeof db !== 'undefined') {
+        try {
+            db.ref('bannedDevices/' + fp).once('value', snap => {
+                if (!snap.val()) {
+                    // Бан снят — очищаем локальный кэш и НЕ блокируем
+                    const filtered = banned.filter(f => f !== fp);
+                    try { localStorage.setItem('tpay_banned_devices', JSON.stringify(filtered)); } catch(e) {}
+                    // Скрываем блокировку если она была показана
+                    const geoBlock = document.getElementById('geoBlockModal');
+                    if (geoBlock && geoBlock.style.display !== 'none') {
+                        geoBlock.style.display = 'none';
+                        location.reload();
+                    }
+                } else {
+                    // В Firebase всё ещё забанен — блокируем
+                    hardBlock('ban', 'Ваше устройство заблокировано администратором. Свяжитесь со службой поддержки для разблокировки.');
+                }
+            });
+        } catch(e) {
+            // Ошибка Firebase — блокируем по локальному кэшу
+            hardBlock('ban', 'Ваше устройство заблокировано администратором.');
+        }
+        // Не блокируем синхронно — ждём ответа Firebase
+        return false;
     }
-    return false;
+
+    // Firebase недоступен — блокируем по локальному кэшу
+    hardBlock('ban', 'Ваше устройство заблокировано администратором. Свяжитесь со службой поддержки для разблокировки.');
+    return true;
 }
 
 // Проверка бана через Firebase (вызывается асинхронно при входе)
