@@ -659,7 +659,10 @@ function renderAdminUsers(filter) {
             return `
             <div class="admin-user-card" data-id="${u.id}" style="background:#fff;border-radius:20px;padding:20px;margin-bottom:14px;box-shadow:0 4px 20px rgba(0,0,0,0.04);cursor:pointer;">
                 <div style="display:flex;align-items:center;gap:14px;margin-bottom:16px;">
-                    <div style="width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,#3b7cf6,#6b9df8);display:flex;align-items:center;justify-content:center;color:white;font-weight:bold;font-size:18px;flex-shrink:0;">${(u.name || '?').charAt(0).toUpperCase()}</div>
+                    <div style="position:relative;flex-shrink:0;">
+                        <div style="width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,#3b7cf6,#6b9df8);display:flex;align-items:center;justify-content:center;color:white;font-weight:bold;font-size:18px;">${(u.name || '?').charAt(0).toUpperCase()}</div>
+                        ${u.online ? '<div style="position:absolute;bottom:0;right:0;width:12px;height:12px;border-radius:50%;background:#34c759;border:2px solid #fff;"></div>' : ''}
+                    </div>
                     <div style="flex:1;min-width:0;">
                         <div style="font-size:16px;font-weight:600;color:#1d1d1d;">${u.name || '—'}</div>
                         <div style="font-size:12px;color:#8c8f94;">@${u.username || '—'}</div>
@@ -780,9 +783,12 @@ function showUserDetail(u) {
 
     content.innerHTML = `
         <div style="background:#f3f1ed;border-radius:20px;padding:24px;text-align:center;margin-bottom:16px;">
-            <div style="width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,#3b7cf6,#6b9df8);display:flex;align-items:center;justify-content:center;color:white;font-weight:bold;font-size:22px;margin:0 auto 12px;">${u.name.charAt(0).toUpperCase()}</div>
+            <div style="position:relative;width:56px;height:56px;margin:0 auto 12px;">
+                <div style="width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,#3b7cf6,#6b9df8);display:flex;align-items:center;justify-content:center;color:white;font-weight:bold;font-size:22px;">${u.name.charAt(0).toUpperCase()}</div>
+                ${u.online ? '<div style="position:absolute;bottom:2px;right:2px;width:14px;height:14px;border-radius:50%;background:#34c759;border:2.5px solid #fff;"></div>' : '<div style="position:absolute;bottom:2px;right:2px;width:14px;height:14px;border-radius:50%;background:#8c8f94;border:2.5px solid #fff;"></div>'}
+            </div>
             <div style="font-size:20px;font-weight:700;color:#1d1d1d;">${u.name}</div>
-            <div style="font-size:13px;color:#8c8f94;">@${u.username}</div>
+            <div style="font-size:13px;color:#8c8f94;">@${u.username} ${u.online ? '· онлайн' : '· офлайн'}</div>
             ${isBanned ? '<div style="margin-top:8px;padding:4px 12px;background:#fff0f0;color:#e62e2e;border-radius:10px;font-size:12px;font-weight:600;">УСТРОЙСТВО ЗАБЛОКИРОВАНО</div>' : ''}
         </div>
 
@@ -1609,6 +1615,10 @@ async function showSplashAndMain() {
     // Настройка уведомлений после входа
     setupNotifications();
 
+    // Статус онлайн
+    setupPresence();
+    startOnlineListener();
+
     // Проверяем городской бейдж
     checkCityBadge();
 
@@ -1630,6 +1640,39 @@ async function setupNotifications() {
     } catch(e) {
         console.warn('Push: setup error:', e.message || e);
     }
+}
+
+// Статус онлайн
+function setupPresence() {
+    if (!currentUser || !currentUser.id || firebaseFailed) return;
+    const ref = usersRef.child(currentUser.id);
+    ref.update({ online: true, lastSeen: Date.now() });
+    ref.child('online').onDisconnect().set(false);
+    ref.child('lastSeen').onDisconnect().set(Date.now());
+    // Обновляем lastSeen каждые 30 секунд
+    if (window._presenceInterval) clearInterval(window._presenceInterval);
+    window._presenceInterval = setInterval(() => {
+        if (currentUser && currentUser.id) {
+            try { ref.update({ online: true, lastSeen: Date.now() }); } catch(e) {}
+        }
+    }, 30000);
+}
+
+// Слушаем онлайны всех пользователей
+let onlineListener = null;
+function startOnlineListener() {
+    if (onlineListener) { onlineListener.off(); onlineListener = null; }
+    if (firebaseFailed || typeof usersRef === 'undefined') return;
+    onlineListener = usersRef;
+    onlineListener.on('child_changed', snap => {
+        const data = snap.val();
+        if (!data) return;
+        const existing = users.find(u => u.id === snap.key);
+        if (existing) {
+            existing.online = data.online || false;
+            existing.lastSeen = data.lastSeen || null;
+        }
+    });
 }
 
 // ====== ВИТРИНА ======
@@ -2510,7 +2553,8 @@ function renderChatUserList() {
                 unread = msgKeys.filter(k => !userChat.messages[k].read && userChat.messages[k].from !== 'admin').length;
             }
             html += '<div class="chat-user-item" data-id="' + u.id + '" style="display:flex;align-items:center;gap:12px;padding:14px 0;border-bottom:1px solid #f0f2f5;cursor:pointer;">' +
-                '<div style="width:44px;height:44px;border-radius:50%;background:#eef0f2;display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:16px;color:#1d1d1d;flex-shrink:0;">' + u.name.charAt(0).toUpperCase() + '</div>' +
+                '<div style="position:relative;flex-shrink:0;"><div style="width:44px;height:44px;border-radius:50%;background:#eef0f2;display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:16px;color:#1d1d1d;">' + u.name.charAt(0).toUpperCase() + '</div>' +
+                (u.online ? '<div style="position:absolute;bottom:0;right:0;width:10px;height:10px;border-radius:50%;background:#34c759;border:2px solid #eef0f2;"></div>' : '') + '</div>' +
                 '<div style="flex:1;min-width:0;">' +
                     '<div style="font-size:15px;font-weight:600;color:#1d1d1d;">' + u.name + '</div>' +
                     '<div style="font-size:12px;color:#8c8f94;">@' + u.username + (lastText ? ' — ' + lastText : '') + '</div>' +
