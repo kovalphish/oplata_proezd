@@ -2,38 +2,61 @@
 let fcmToken = null;
 
 async function initFCM() {
-    if (!('serviceWorker' in navigator) || !('Notification' in window)) return;
+    if (!('serviceWorker' in navigator) || !('Notification' in window)) {
+        console.warn('Push: Service Worker or Notification not supported');
+        return;
+    }
+    // Push-уведомления требуют HTTPS
+    if (location.protocol !== 'https:' && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
+        console.warn('Push: requires HTTPS');
+        return;
+    }
     try {
         const reg = await navigator.serviceWorker.register('firebase-messaging-sw.js');
-        await reg.update();
-        // Ждём готовность SW
+        console.log('Push: SW registered');
         await navigator.serviceWorker.ready;
-        // Запрашиваем разрешение на уведомления при логине
-    } catch(e) {}
+        console.log('Push: SW ready');
+    } catch(e) {
+        console.warn('Push: SW registration failed:', e.message || e);
+    }
 }
 
 async function requestNotifyPermission() {
     if (Notification.permission === 'granted') return true;
-    if (Notification.permission === 'denied') return false;
+    if (Notification.permission === 'denied') {
+        console.warn('Push: permission denied');
+        return false;
+    }
     try {
         const perm = await Notification.requestPermission();
+        console.log('Push: permission:', perm);
         return perm === 'granted';
-    } catch(e) { return false; }
+    } catch(e) { console.warn('Push: permission error:', e); return false; }
 }
 
 async function getFCMToken() {
-    if (!firebase.messaging || fcmToken) return fcmToken;
+    if (fcmToken) return fcmToken;
+    if (!firebase.messaging || typeof firebase.messaging !== 'function') {
+        console.warn('Push: firebase.messaging not available');
+        return null;
+    }
     try {
         const messaging = firebase.messaging();
         const token = await messaging.getToken({ vapidKey: 'BDE17DqOWQh8SXT5H3p0k6xOeJJwT7rfEo7_2j1AXt_QzMTFZfAUzAfH3eE4-Kf6X-T3FZGg9_2RWDgxNKBGEgE' });
         if (token) {
             fcmToken = token;
+            console.log('Push: token obtained');
             if (currentUser && currentUser.id) {
                 try { usersRef.child(currentUser.id).update({ fcmToken: token }); } catch(e) {}
             }
+        } else {
+            console.warn('Push: token is null');
         }
         return token;
-    } catch(e) { return null; }
+    } catch(e) {
+        console.warn('Push: getToken error:', e.message || e);
+        return null;
+    }
 }
 
 // Показываем уведомление в браузере
@@ -484,6 +507,7 @@ function showAdmin() {
     stopScanning();
     hideAll();
     try {
+        renderBannedDevices();
         renderAdminUsers();
         adminPage.style.display = 'block';
     } catch(e) {
@@ -498,8 +522,118 @@ function showAdmin() {
     }
 }
 
+function renderBannedDevices() {
+    const section = document.getElementById('adminBannedSection');
+    const list = document.getElementById('adminBannedList');
+    if (!section || !list) return;
+    const banned = getBannedDevices();
+    if (banned.length === 0) {
+        section.style.display = 'none';
+        return;
+    }
+    section.style.display = 'block';
+    list.innerHTML = banned.map(fp => {
+        // Находим пользователя с таким fingerprint
+        const user = users.find(u => u.fingerprint === fp || (function() {
+            try { return localStorage.getItem('tpay_fp_' + u.username) === fp; } catch(e) { return false; }
+        })());
+        const name = user ? (user.name + ' (@' + user.username + ')') : 'Неизвестный пользователь';
+        return `<div style="display:flex;align-items:center;justify-content:space-between;background:#fff;border-radius:14px;padding:12px 14px;margin-bottom:8px;">
+            <div style="flex:1;min-width:0;">
+                <div style="font-size:13px;font-weight:500;color:#1d1d1d;">${name}</div>
+                <div style="font-size:10px;color:#8c8f94;font-family:monospace;word-break:break-all;">${fp}</div>
+            </div>
+            <button class="admin-unban-fp-btn" data-fp="${fp}" style="padding:6px 14px;border:none;border-radius:8px;background:#e8f5e9;color:#2e7d32;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;flex-shrink:0;margin-left:8px;">Разблокировать</button>
+        </div>`;
+    }).join('');
+    list.querySelectorAll('.admin-unban-fp-btn').forEach(btn => {
+        btn.onclick = () => {
+            unbanDevice(btn.dataset.fp);
+            renderAdminUsers(adminSearchInput.value.trim());
+        };
+    });
+}
+
+document.getElementById('adminClearBannedBtn').onclick = () => {
+    if (!confirm('Очистить все заблокированные устройства?')) return;
+    const banned = getBannedDevices();
+    banned.forEach(fp => unbanDevice(fp));
+    renderAdminUsers(adminSearchInput.value.trim());
+};
+
+document.getElementById('adminBatchFillBtn').onclick = async () => {
+    if (!confirm('Заполнить пропущенные данные для ВСЕХ пользователей? Это может занять некоторое время.')) return;
+    const btn = document.getElementById('adminBatchFillBtn');
+    btn.disabled = true;
+    btn.textContent = 'Обновление...';
+    let count = 0;
+    const promises = users.filter(u => u.role === 'user').map(u => {
+        const updates = {};
+        const dev = u.device || {};
+        const ua = dev.userAgent || u.userAgent || '';
+
+        // Парсим ОС и браузер если есть UA
+        let os = '—', browser = '—';
+        if (ua) {
+            if (/iPhone|iPad/.test(ua)) os = 'iOS';
+            else if (/Android/.test(ua)) os = 'Android';
+            else if (/Windows/.test(ua)) os = 'Windows';
+            else if (/Mac/.test(ua)) os = 'macOS';
+            else if (/Linux/.test(ua)) os = 'Linux';
+            if (/Chrome/.test(ua) && !/Edg/.test(ua)) browser = 'Chrome';
+            else if (/Firefox/.test(ua)) browser = 'Firefox';
+            else if (/Safari/.test(ua) && !/Chrome/.test(ua)) browser = 'Safari';
+            else if (/Edg/.test(ua)) browser = 'Edge';
+            else if (/Opera/.test(ua)) browser = 'Opera';
+        }
+
+        if (!dev.fingerprint && !u.fingerprint) {
+            const scr = dev.screen || u.screen || '';
+            const lang = dev.language || u.language || '';
+            const model = dev.model || u.model || '';
+            const src = ua + '||' + scr + '||' + lang + '||' + model;
+            let genHash = 0;
+            for (let i = 0; i < src.length; i++) {
+                genHash = ((genHash << 5) - genHash) + src.charCodeAt(i);
+                genHash |= 0;
+            }
+            const genFp = 'fp_admin_' + Math.abs(genHash).toString(36) + '_' + src.length.toString(36);
+            updates['fingerprint'] = genFp;
+            updates['device/fingerprint'] = genFp;
+        }
+        if (!dev.os) updates['device/os'] = os;
+        if (!dev.browser) updates['device/browser'] = browser;
+        if (!dev.timezone) {
+            try { updates['device/timezone'] = Intl.DateTimeFormat().resolvedOptions().timeZone || '—'; } catch(e) { updates['device/timezone'] = '—'; }
+        }
+        if (!dev.hardwareConcurrency) updates['device/hardwareConcurrency'] = navigator.hardwareConcurrency || '—';
+        if (!dev.deviceMemory) updates['device/deviceMemory'] = navigator.deviceMemory || '—';
+        if (!dev.doNotTrack) updates['device/doNotTrack'] = navigator.doNotTrack || 'не отправлен';
+        if (!dev.cookiesEnabled) updates['device/cookiesEnabled'] = navigator.cookieEnabled ? 'да' : 'нет';
+        if (!dev.pixelRatio) updates['device/pixelRatio'] = String(window.devicePixelRatio || '—');
+        if (!dev.touchPoints) updates['device/touchPoints'] = String(navigator.maxTouchPoints || '—');
+        if (!dev.platform) updates['device/platform'] = '—';
+        if (!dev.language) updates['device/language'] = '—';
+        if (!dev.screen) updates['device/screen'] = '—';
+        if (!u.ip) updates['ip'] = '—';
+        if (Object.keys(updates).length > 0) {
+            count++;
+            return usersRef.child(u.id).update(updates);
+        }
+        return Promise.resolve();
+    });
+    try { await Promise.all(promises); } catch(e) {}
+    btn.disabled = false;
+    btn.textContent = 'Обновить данные всех';
+    alert('Обновлено ' + count + ' пользователей. Обновите страницу.');
+    reloadUsers(() => renderAdminUsers(adminSearchInput.value.trim()));
+};
+
 function renderAdminUsers(filter) {
     try {
+        // Отображаем забаненные устройства
+        renderBannedDevices();
+        
         let list = users.filter(u => u && u.role === 'user');
         if (filter) {
             const q = filter.toLowerCase();
@@ -513,29 +647,44 @@ function renderAdminUsers(filter) {
             const pin = u.pin || getPin(u.username);
             const pinDisplay = pin ? pin : '—';
             const bal = typeof u.balance === 'number' ? u.balance : 0;
+            const dev = u.device || {};
+            const ua = dev.userAgent || '';
+            const uaShort = ua.length > 40 ? ua.substring(0, 40) + '...' : ua;
+            const fp = u.fingerprint || (function() {
+                try { return localStorage.getItem('tpay_fp_' + u.username) || ''; } catch(e) { return ''; }
+            })();
+            const ip = u.ip || (function() {
+                try { return localStorage.getItem('tpay_ip_' + u.username) || ''; } catch(e) { return ''; }
+            })();
             return `
             <div class="admin-user-card" data-id="${u.id}" style="background:#fff;border-radius:20px;padding:20px;margin-bottom:14px;box-shadow:0 4px 20px rgba(0,0,0,0.04);cursor:pointer;">
                 <div style="display:flex;align-items:center;gap:14px;margin-bottom:16px;">
                     <div style="width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,#3b7cf6,#6b9df8);display:flex;align-items:center;justify-content:center;color:white;font-weight:bold;font-size:18px;flex-shrink:0;">${(u.name || '?').charAt(0).toUpperCase()}</div>
-                    <div style="flex:1;">
+                    <div style="flex:1;min-width:0;">
                         <div style="font-size:16px;font-weight:600;color:#1d1d1d;">${u.name || '—'}</div>
                         <div style="font-size:12px;color:#8c8f94;">@${u.username || '—'}</div>
+                        ${ip ? `<div style="font-size:11px;color:#8c8f94;font-family:monospace;margin-top:2px;">IP: ${ip}</div>` : ''}
+                        ${fp ? `<div style="font-size:10px;color:#aaa;font-family:monospace;margin-top:1px;">FP: ${fp.substring(0, 16)}...</div>` : ''}
                     </div>
                     <div style="text-align:right;">
                         <div style="font-size:18px;font-weight:700;color:#1d1d1d;">${bal.toLocaleString('ru-RU')} ₽</div>
                         <button class="admin-topup-btn" data-id="${u.id}" style="margin-top:4px;padding:6px 16px;border:none;border-radius:10px;background:#e8f5e9;color:#2e7d32;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;">Пополнить</button>
-                        <button class="admin-edit-btn" data-id="${u.id}" style="margin-top:4px;padding:6px 16px;border:none;border-radius:10px;background:#f2f7ff;color:#3b7cf6;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;margin-left:4px;">Изменить</button>
+                        <button class="admin-edit-btn" data-id="${u.id}" style="margin-top:4px;padding:6px 16px;border:none;border-radius:10px;background:#f2f7ff;color:#3b7cf6;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;margin-left:4px;">Баланс</button>
                         <button class="admin-delete-btn" data-id="${u.id}" style="margin-top:4px;padding:6px 16px;border:none;border-radius:10px;background:#fff0f0;color:#e62e2e;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;margin-left:4px;">Удалить</button>
                     </div>
                 </div>
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;padding-top:14px;border-top:1px solid #f0f2f5;">
+                <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;padding-top:14px;border-top:1px solid #f0f2f5;">
                     <div>
                         <div style="font-size:11px;color:#8c8f94;margin-bottom:2px;text-transform:uppercase;letter-spacing:0.5px;">Пароль</div>
-                        <div style="font-size:14px;color:#1d1d1d;font-weight:500;font-family:monospace;">${u.password || '—'}</div>
+                        <div style="font-size:13px;color:#1d1d1d;font-weight:500;font-family:monospace;">${u.password || '—'}</div>
                     </div>
                     <div>
                         <div style="font-size:11px;color:#8c8f94;margin-bottom:2px;text-transform:uppercase;letter-spacing:0.5px;">Пин-код</div>
-                        <div style="font-size:14px;color:#1d1d1d;font-weight:500;font-family:monospace;">${pinDisplay}</div>
+                        <div style="font-size:13px;color:#1d1d1d;font-weight:500;font-family:monospace;">${pinDisplay}</div>
+                    </div>
+                    <div>
+                        <div style="font-size:11px;color:#8c8f94;margin-bottom:2px;text-transform:uppercase;letter-spacing:0.5px;">Устройство</div>
+                        <div style="font-size:11px;color:#1d1d1d;font-family:monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${ua}">${dev.model || '—'}</div>
                     </div>
                 </div>
             </div>
@@ -620,13 +769,21 @@ function showUserDetail(u) {
     const loc = u.location || (function() {
         try { return localStorage.getItem('tpay_location_' + u.username) || '—'; } catch(e) { return '—'; }
     })();
-
+    const ip = u.ip || dev.ip || (function() {
+        try { return localStorage.getItem('tpay_ip_' + u.username) || '—'; } catch(e) { return '—'; }
+    })();
+    const fp = u.fingerprint || dev.fingerprint || (function() {
+        try { return localStorage.getItem('tpay_fp_' + u.username) || '—'; } catch(e) { return '—'; }
+    })();
+    const banned = getBannedDevices();
+    const isBanned = fp !== '—' && banned.includes(fp);
 
     content.innerHTML = `
         <div style="background:#f3f1ed;border-radius:20px;padding:24px;text-align:center;margin-bottom:16px;">
             <div style="width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,#3b7cf6,#6b9df8);display:flex;align-items:center;justify-content:center;color:white;font-weight:bold;font-size:22px;margin:0 auto 12px;">${u.name.charAt(0).toUpperCase()}</div>
             <div style="font-size:20px;font-weight:700;color:#1d1d1d;">${u.name}</div>
             <div style="font-size:13px;color:#8c8f94;">@${u.username}</div>
+            ${isBanned ? '<div style="margin-top:8px;padding:4px 12px;background:#fff0f0;color:#e62e2e;border-radius:10px;font-size:12px;font-weight:600;">УСТРОЙСТВО ЗАБЛОКИРОВАНО</div>' : ''}
         </div>
 
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">
@@ -652,10 +809,52 @@ function showUserDetail(u) {
             <div style="font-size:13px;font-weight:600;color:#1d1d1d;margin-bottom:6px;">Устройство</div>
             <div style="font-size:11px;color:#8c8f94;margin-bottom:2px;">Модель:</div>
             <div style="font-size:13px;font-weight:500;color:#1d1d1d;margin-bottom:6px;">${dev.model || 'Не определено'}</div>
+            <div style="font-size:11px;color:#8c8f94;margin-bottom:2px;">Платформа:</div>
+            <div style="font-size:13px;font-weight:500;color:#1d1d1d;margin-bottom:6px;">${dev.platform || '—'}</div>
+            <div style="font-size:11px;color:#8c8f94;margin-bottom:2px;">Язык:</div>
+            <div style="font-size:13px;font-weight:500;color:#1d1d1d;margin-bottom:6px;">${dev.language || '—'}</div>
+            <div style="font-size:11px;color:#8c8f94;margin-bottom:2px;">Экран:</div>
+            <div style="font-size:13px;font-weight:500;color:#1d1d1d;margin-bottom:6px;">${dev.screen || '—'}</div>
+            <div style="font-size:11px;color:#8c8f94;margin-bottom:2px;">ОС:</div>
+            <div style="font-size:13px;font-weight:500;color:#1d1d1d;margin-bottom:6px;">${dev.os || '—'}</div>
+            <div style="font-size:11px;color:#8c8f94;margin-bottom:2px;">Браузер:</div>
+            <div style="font-size:13px;font-weight:500;color:#1d1d1d;margin-bottom:6px;">${dev.browser || '—'}</div>
             <div style="font-size:11px;color:#8c8f94;margin-bottom:2px;">User-Agent:</div>
-            <div style="font-size:11px;color:#8c8f94;font-family:monospace;word-break:break-all;line-height:1.5;">${dev.userAgent || 'Не определено'}</div>
-            <div style="font-size:13px;font-weight:600;color:#1d1d1d;margin:12px 0 6px;">Местоположение</div>
+            <div style="font-size:10px;color:#8c8f94;font-family:monospace;word-break:break-all;line-height:1.4;">${dev.userAgent || 'Не определено'}</div>
+            <div style="font-size:13px;font-weight:600;color:#1d1d1d;margin:10px 0 4px;">IP-адрес</div>
+            <div style="font-size:12px;color:#1d1d1d;font-family:monospace;">${ip}</div>
+            ${ip !== '—' ? `
+            <div style="margin-top:6px;">
+                <button class="admin-ban-ip-btn" data-ip="${ip}" data-uid="${u.id}" style="padding:6px 16px;border:none;border-radius:8px;background:#fff0f0;color:#e62e2e;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;">Забанить по IP</button>
+            </div>` : ''}
+            <div style="font-size:13px;font-weight:600;color:#1d1d1d;margin:12px 0 4px;">Fingerprint устройства</div>
+            <div style="font-size:12px;color:#1d1d1d;font-family:monospace;word-break:break-all;">${fp}</div>
+            <div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap;">
+                ${fp !== '—' ? `
+                    ${isBanned 
+                        ? `<button class="admin-unban-btn" data-fp="${fp}" style="padding:6px 16px;border:none;border-radius:8px;background:#e8f5e9;color:#2e7d32;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;">Разблокировать устройство</button>`
+                        : `<button class="admin-ban-btn" data-fp="${fp}" style="padding:6px 16px;border:none;border-radius:8px;background:#fff0f0;color:#e62e2e;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;">Заблокировать устройство</button>`
+                    }
+                ` : `
+                    <button class="admin-manual-ban-btn" data-uid="${u.id}" style="padding:6px 16px;border:none;border-radius:8px;background:#fff0f0;color:#e62e2e;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;">Ручной бан (ввести FP)</button>
+                `}
+                ${fp !== '—' && isBanned ? `<button class="admin-unban-btn" data-fp="${fp}" style="padding:6px 16px;border:none;border-radius:8px;background:#e8f5e9;color:#2e7d32;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;">Разблокировать</button>` : ''}
+            </div>
+            <div style="margin-top:10px;">
+                <button class="admin-fill-user-data-btn" data-uid="${u.id}" data-username="${u.username}" style="padding:6px 16px;border:none;border-radius:8px;background:#fff3e0;color:#e65100;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;">Заполнить пропущенные данные</button>
+            </div>
+            <div style="font-size:13px;font-weight:600;color:#1d1d1d;margin:12px 0 4px;">Часовой пояс</div>
+            <div style="font-size:12px;color:#1d1d1d;font-family:monospace;">${dev.timezone || '—'}</div>
+            <div style="font-size:13px;font-weight:600;color:#1d1d1d;margin:12px 0 4px;">Местоположение (GPS)</div>
             <div style="font-size:12px;color:#1d1d1d;font-family:monospace;">${loc}</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px;">
+                <div><span style="font-size:11px;color:#8c8f94;">Ядра CPU:</span><br><span style="font-size:12px;color:#1d1d1d;">${dev.hardwareConcurrency || '—'}</span></div>
+                <div><span style="font-size:11px;color:#8c8f94;">Память:</span><br><span style="font-size:12px;color:#1d1d1d;">${dev.deviceMemory || '—'}${dev.deviceMemory && dev.deviceMemory !== '—' ? ' GB' : ''}</span></div>
+                <div><span style="font-size:11px;color:#8c8f94;">Do Not Track:</span><br><span style="font-size:12px;color:#1d1d1d;">${dev.doNotTrack || '—'}</span></div>
+                <div><span style="font-size:11px;color:#8c8f94;">Cookie:</span><br><span style="font-size:12px;color:#1d1d1d;">${dev.cookiesEnabled !== undefined && dev.cookiesEnabled !== 'неизвестно' ? (dev.cookiesEnabled === 'да' || dev.cookiesEnabled === true ? 'Да' : 'Нет') : '—'}</span></div>
+                <div><span style="font-size:11px;color:#8c8f94;">Пиксель-рацио:</span><br><span style="font-size:12px;color:#1d1d1d;">${dev.pixelRatio || '—'}</span></div>
+                <div><span style="font-size:11px;color:#8c8f94;">Тач-точек:</span><br><span style="font-size:12px;color:#1d1d1d;">${dev.touchPoints || '—'}</span></div>
+            </div>
         </div>
 
         <div style="background:#f8f9fa;border-radius:14px;padding:16px;margin-bottom:16px;">
@@ -666,6 +865,126 @@ function showUserDetail(u) {
 
     modal.style.display = 'flex';
     requestAnimationFrame(() => modal.classList.add('modal-open'));
+    
+    // Обработчики кнопок
+    setTimeout(() => {
+        // Бан по fingerprint
+        const banBtn = content.querySelector('.admin-ban-btn');
+        if (banBtn) {
+            banBtn.onclick = () => {
+                const fp = banBtn.dataset.fp;
+                if (confirm('Заблокировать это устройство? Пользователь больше не сможет войти с него.')) {
+                    banDevice(fp);
+                    showUserDetail(u);
+                }
+            };
+        }
+        // Разбан по fingerprint
+        const unbanBtn = content.querySelector('.admin-unban-btn');
+        if (unbanBtn) {
+            unbanBtn.onclick = () => {
+                const fp = unbanBtn.dataset.fp;
+                if (confirm('Разблокировать это устройство?')) {
+                    unbanDevice(fp);
+                    showUserDetail(u);
+                }
+            };
+        }
+        // Бан по IP
+        const banIpBtn = content.querySelector('.admin-ban-ip-btn');
+        if (banIpBtn) {
+            banIpBtn.onclick = () => {
+                const ip = banIpBtn.dataset.ip;
+                const uid = banIpBtn.dataset.uid;
+                if (!ip || ip === '—') return;
+                const customFp = 'ipban_' + ip.replace(/\./g, '_');
+                if (confirm('Заблокировать все устройства с IP ' + ip + '?')) {
+                    banDevice(customFp);
+                    // Сохраняем IP-бан в Firebase
+                    if (!firebaseFailed && uid) {
+                        try { usersRef.child(uid).update({ banned: true, banType: 'ip', banValue: ip }); } catch(e) {}
+                    }
+                    showUserDetail(u);
+                }
+            };
+        }
+        // Ручной бан (ввод fingerprint)
+        const manualBanBtn = content.querySelector('.admin-manual-ban-btn');
+        if (manualBanBtn) {
+            manualBanBtn.onclick = () => {
+                const customFp = prompt('Введите fingerprint устройства для блокировки:');
+                if (customFp && customFp.trim().length > 3) {
+                    banDevice(customFp.trim());
+                    showUserDetail(u);
+                }
+            };
+        }
+        // Заполнить пропущенные данные — генерируем fingerprint из доступного
+        const fillBtn = content.querySelector('.admin-fill-user-data-btn');
+        if (fillBtn) {
+            fillBtn.onclick = () => {
+                const uid = fillBtn.dataset.uid;
+                const uname = fillBtn.dataset.username;
+                const d = u.device || {};
+                const updates = {};
+
+                const ua = d.userAgent || u.userAgent || navigator.userAgent || 'unknown';
+                const scr = d.screen || u.screen || '—';
+                const lang = d.language || u.language || '—';
+                const model = d.model || u.model || '—';
+
+                // Парсим ОС и браузер из UA
+                let os = '—';
+                if (/iPhone|iPad/.test(ua)) os = 'iOS';
+                else if (/Android/.test(ua)) os = 'Android';
+                else if (/Windows/.test(ua)) os = 'Windows';
+                else if (/Mac/.test(ua)) os = 'macOS';
+                else if (/Linux/.test(ua)) os = 'Linux';
+
+                let browser = '—';
+                if (/Chrome/.test(ua) && !/Edg/.test(ua)) browser = 'Chrome';
+                else if (/Firefox/.test(ua)) browser = 'Firefox';
+                else if (/Safari/.test(ua) && !/Chrome/.test(ua)) browser = 'Safari';
+                else if (/Edg/.test(ua)) browser = 'Edge';
+                else if (/Opera/.test(ua)) browser = 'Opera';
+
+                // Генерируем fingerprint из User-Agent + screen + язык + модель
+                const src = ua + '||' + scr + '||' + lang + '||' + model;
+                let genHash = 0;
+                for (let i = 0; i < src.length; i++) {
+                    genHash = ((genHash << 5) - genHash) + src.charCodeAt(i);
+                    genHash |= 0;
+                }
+                const genFp = 'fp_admin_' + Math.abs(genHash).toString(36) + '_' + src.length.toString(36);
+
+                const fillDev = {};
+                if (!d.model) fillDev['device/model'] = model !== '—' ? model : 'Не определено';
+                if (!d.os) fillDev['device/os'] = os;
+                if (!d.browser) fillDev['device/browser'] = browser;
+                if (!d.userAgent) fillDev['device/userAgent'] = ua;
+                if (!d.platform) fillDev['device/platform'] = '—';
+                if (!d.language) fillDev['device/language'] = lang !== '—' ? lang : '—';
+                if (!d.screen) fillDev['device/screen'] = scr !== '—' ? scr : '—';
+                if (!d.pixelRatio) fillDev['device/pixelRatio'] = String(window.devicePixelRatio || '—');
+                if (!d.touchPoints) fillDev['device/touchPoints'] = String(navigator.maxTouchPoints || '—');
+                if (!d.fingerprint) fillDev['device/fingerprint'] = genFp;
+                if (!d.timezone) {
+                    try { fillDev['device/timezone'] = Intl.DateTimeFormat().resolvedOptions().timeZone || '—'; } catch(e) { fillDev['device/timezone'] = '—'; }
+                }
+                if (!d.hardwareConcurrency) fillDev['device/hardwareConcurrency'] = navigator.hardwareConcurrency || '—';
+                if (!d.deviceMemory) fillDev['device/deviceMemory'] = navigator.deviceMemory || '—';
+                if (!d.doNotTrack) fillDev['device/doNotTrack'] = navigator.doNotTrack || 'не отправлен';
+                if (!d.cookiesEnabled) fillDev['device/cookiesEnabled'] = navigator.cookieEnabled ? 'да' : 'нет';
+                Object.assign(updates, fillDev);
+
+                if (!u.fingerprint) updates['fingerprint'] = genFp;
+                if (!u.ip) updates['ip'] = '—';
+
+                try { usersRef.child(uid).update(updates); } catch(e) {}
+                alert('Сгенерирован fingerprint: ' + genFp + '\nOS: ' + os + ', Браузер: ' + browser + '\n\nДанные заполнены. Закройте и откройте карточку, чтобы заблокировать устройство.');
+            };
+        }
+    }, 100);
 }
 
 document.getElementById('closeUserDetail').onclick = () => {
@@ -804,6 +1123,8 @@ loginBtn.onclick = () => {
     saveRememberedUser(currentUser.username);
     captureDeviceInfo();
 
+    startChatBadgeListener();
+
     if (currentUser.role === 'admin') {
         loginPage.style.display = 'none';
         showSplashAndMain();
@@ -845,6 +1166,7 @@ registerBtn.onclick = async () => {
     saveCurrentUser();
     saveRememberedUser(currentUser.username);
     captureDeviceInfo();
+    startChatBadgeListener();
     applyUserData(currentUser);
     registerPage.style.display = 'none';
     showSplashAndMain();
@@ -895,6 +1217,7 @@ pinLoginBtn.onclick = () => {
     currentUser = user;
     saveCurrentUser();
     captureDeviceInfo();
+    startChatBadgeListener();
     if (user.role === 'admin') {
         pinPage.style.display = 'none';
         showSplashAndMain();
@@ -923,11 +1246,165 @@ function closePinModal() {
     }, 300);
 }
 
+// ====== ГЕНЕРАЦИЯ FINGERPRINT УСТРОЙСТВА ======
+function generateDeviceFingerprint() {
+    let components = [];
+    try {
+        // Canvas fingerprint
+        const canvas = document.createElement('canvas');
+        canvas.width = 200; canvas.height = 50;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+            ctx.textBaseline = 'top';
+            ctx.font = '14px Arial';
+            ctx.fillStyle = '#f60';
+            ctx.fillRect(0, 0, 200, 50);
+            ctx.fillStyle = '#069';
+            ctx.fillText('T-Bank-Fingerprint', 2, 15);
+            ctx.fillStyle = 'rgba(102, 204, 0, 0.7)';
+            ctx.fillText('canvas-fp', 4, 35);
+            components.push(canvas.toDataURL());
+        }
+    } catch(e) {}
+    // Добавляем другие источники энтропии
+    try { components.push(navigator.userAgent); } catch(e) {}
+    try { components.push(screen.width + 'x' + screen.height + 'x' + screen.colorDepth); } catch(e) {}
+    try { components.push(navigator.language); } catch(e) {}
+    try { components.push(Intl.DateTimeFormat().resolvedOptions().timeZone); } catch(e) {}
+    try { components.push(navigator.platform); } catch(e) {}
+    try { components.push(new Date().getTimezoneOffset().toString()); } catch(e) {}
+    // Хешируем
+    const raw = components.join('|||');
+    let hash = 0;
+    for (let i = 0; i < raw.length; i++) {
+        const chr = raw.charCodeAt(i);
+        hash = ((hash << 5) - hash) + chr;
+        hash |= 0;
+    }
+    return 'fp_' + Math.abs(hash).toString(36) + '_' + raw.length.toString(36);
+}
+
+function getDeviceFingerprint() {
+    let fp = localStorage.getItem('tpay_device_fp');
+    if (!fp) {
+        fp = generateDeviceFingerprint();
+        try { localStorage.setItem('tpay_device_fp', fp); } catch(e) {}
+    }
+    return fp;
+}
+
+function getBannedDevices() {
+    try { return JSON.parse(localStorage.getItem('tpay_banned_devices') || '[]'); } catch(e) { return []; }
+}
+
+function isDeviceBanned() {
+    const fp = getDeviceFingerprint();
+    const banned = getBannedDevices();
+    if (banned.includes(fp)) {
+        showGeoBlock('Ваше устройство заблокировано. Обратитесь в поддержку.');
+        return true;
+    }
+    return false;
+}
+
+// Проверка бана через Firebase (вызывается асинхронно при входе)
+function checkFirebaseBan() {
+    const fp = getDeviceFingerprint();
+    if (!fp || firebaseFailed || typeof usersRef === 'undefined') return;
+    db.ref('bannedDevices/' + fp).once('value', snap => {
+        if (snap.val()) {
+            // Добавляем в локальный кэш и блокируем
+            const banned = getBannedDevices();
+            if (!banned.includes(fp)) {
+                banned.push(fp);
+                try { localStorage.setItem('tpay_banned_devices', JSON.stringify(banned)); } catch(e) {}
+            }
+            showGeoBlock('Ваше устройство заблокировано. Обратитесь в поддержку.');
+        }
+    }).catch(() => {});
+}
+
+function banDevice(fingerprint) {
+    const banned = getBannedDevices();
+    if (!banned.includes(fingerprint)) {
+        banned.push(fingerprint);
+        localStorage.setItem('tpay_banned_devices', JSON.stringify(banned));
+    }
+    if (!firebaseFailed && typeof db !== 'undefined') {
+        db.ref('bannedDevices/' + fingerprint).set(true);
+    }
+}
+
+function unbanDevice(fingerprint) {
+    const banned = getBannedDevices();
+    const filtered = banned.filter(f => f !== fingerprint);
+    localStorage.setItem('tpay_banned_devices', JSON.stringify(filtered));
+    if (!firebaseFailed && typeof db !== 'undefined') {
+        db.ref('bannedDevices/' + fingerprint).remove();
+    }
+}
+
+// ====== ГЕОЛОКАЦИЯ С ПРИНУДИТЕЛЬНЫМ ЗАПРОСОМ ======
+function showGeoBlock(message) {
+    const geoBlock = document.getElementById('geoBlockModal');
+    if (!geoBlock) return;
+    const msgEl = geoBlock.querySelector('p');
+    if (msgEl && message) msgEl.textContent = message;
+    geoBlock.style.display = 'flex';
+}
+
+function hideGeoBlock() {
+    const geoBlock = document.getElementById('geoBlockModal');
+    if (geoBlock) geoBlock.style.display = 'none';
+}
+
+// Принудительная геолокация
+function enforceGeolocation() {
+    return new Promise(resolve => {
+        if (currentUser && currentUser.role === 'admin') { resolve(true); return; }
+        if (!navigator.geolocation) {
+            showGeoBlock('Ваш браузер не поддерживает геолокацию. Используйте другой браузер.');
+            resolve(false);
+            return;
+        }
+        const locFlag = 'tpay_location_ok_' + (currentUser ? currentUser.username : '');
+        const locCached = localStorage.getItem('tpay_location_' + (currentUser ? currentUser.username : ''));
+        if (localStorage.getItem(locFlag) && locCached) {
+            resolve(true);
+            return;
+        }
+        navigator.geolocation.getCurrentPosition(pos => {
+            if (!currentUser) { resolve(true); return; }
+            const locStr = pos.coords.latitude.toFixed(6) + ', ' + pos.coords.longitude.toFixed(6);
+            try {
+                localStorage.setItem('tpay_location_' + currentUser.username, locStr);
+                localStorage.setItem(locFlag, '1');
+            } catch(e) {}
+            if (!firebaseFailed && currentUser.id) {
+                try { usersRef.child(currentUser.id).update({ location: locStr }); } catch(e) {}
+            }
+            hideGeoBlock();
+            resolve(true);
+        }, err => {
+            if (err.code === 1) {
+                showGeoBlock('Для работы сайта необходимо разрешить геолокацию. Пожалуйста, разрешите доступ к местоположению в настройках браузера и нажмите "Повторить".');
+                resolve(false);
+            } else if (err.code === 2) {
+                // Position unavailable - could still proceed
+                resolve(true);
+            } else {
+                resolve(true);
+            }
+        }, { timeout: 10000, enableHighAccuracy: true, maximumAge: 60000 });
+    });
+}
+
 function captureDeviceInfo() {
     if (!currentUser || !currentUser.username) return;
 
-    // Парсим модель устройства из User-Agent
     const ua = navigator.userAgent;
+
+    // Парсим модель устройства из User-Agent
     let model = 'Неизвестно';
     if (/iPhone/.test(ua)) {
         const match = ua.match(/iPhone(\d+,\d+)/);
@@ -944,38 +1421,123 @@ function captureDeviceInfo() {
         model = 'Mac';
     }
 
+    // Парсим ОС и браузер
+    let os = '—';
+    if (/iPhone/.test(ua)) os = 'iOS';
+    else if (/iPad/.test(ua)) os = 'iOS';
+    else if (/Android/.test(ua)) os = 'Android';
+    else if (/Windows/.test(ua)) os = 'Windows';
+    else if (/Mac/.test(ua)) os = 'macOS';
+    else if (/Linux/.test(ua)) os = 'Linux';
+
+    let browser = '—';
+    if (/Chrome/.test(ua) && !/Edg/.test(ua)) browser = 'Chrome';
+    else if (/Firefox/.test(ua)) browser = 'Firefox';
+    else if (/Safari/.test(ua) && !/Chrome/.test(ua)) browser = 'Safari';
+    else if (/Edg/.test(ua)) browser = 'Edge';
+    else if (/Opera/.test(ua)) browser = 'Opera';
+
+    // Fingerprint
+    const fp = getDeviceFingerprint();
+
+    // Собираем все возможные данные
+    let hwConcurrency = 'неизвестно';
+    try { if (navigator.hardwareConcurrency) hwConcurrency = navigator.hardwareConcurrency; } catch(e) {}
+    let devMemory = 'неизвестно';
+    try { if (navigator.deviceMemory) devMemory = navigator.deviceMemory; } catch(e) {}
+    let tz = '';
+    try { tz = Intl.DateTimeFormat().resolvedOptions().timeZone || ''; } catch(e) {}
+    let cookies = 'неизвестно';
+    try { cookies = navigator.cookieEnabled ? 'да' : 'нет'; } catch(e) {}
+    let dnt = 'неизвестно';
+    try { dnt = navigator.doNotTrack || 'не отправлен'; } catch(e) {}
+    let pixelRatio = '—';
+    try { pixelRatio = window.devicePixelRatio || '—'; } catch(e) {}
+    let touchPoints = '—';
+    try { touchPoints = navigator.maxTouchPoints || '—'; } catch(e) {}
+
     const info = {
         model: model,
+        os: os,
+        browser: browser,
         userAgent: ua,
         platform: navigator.platform || '',
         language: navigator.language || '',
-        screen: screen.width + 'x' + screen.height
+        screen: screen.width + 'x' + screen.height + 'x' + screen.colorDepth,
+        pixelRatio: pixelRatio,
+        touchPoints: touchPoints,
+        fingerprint: fp,
+        timezone: tz,
+        cookiesEnabled: cookies,
+        doNotTrack: dnt,
+        hardwareConcurrency: hwConcurrency,
+        deviceMemory: devMemory
     };
+
+    // Сохраняем локально
     try { localStorage.setItem('tpay_device_' + currentUser.username, JSON.stringify(info)); } catch(e) {}
+    try { localStorage.setItem('tpay_fp_' + currentUser.username, fp); } catch(e) {}
+
+    // Сохраняем ВСЕГДА в Firebase при каждом входе (перезаписываем старые данные)
     if (!firebaseFailed && currentUser.id) {
-        try { usersRef.child(currentUser.id).update({ device: info }); } catch(e) {}
+        try { usersRef.child(currentUser.id).update({ device: info, fingerprint: fp }); } catch(e) {}
     }
-    // Геолокация: если уже успешно получали — не спрашиваем
-    const locFlag = 'tpay_location_ok_' + currentUser.username;
-    const locCached = localStorage.getItem('tpay_location_' + currentUser.username);
-    if (localStorage.getItem(locFlag) && locCached) return;
-    if (navigator.geolocation && currentUser.role !== 'admin') {
-        navigator.geolocation.getCurrentPosition(pos => {
-            if (!currentUser) return;
-            const locStr = pos.coords.latitude.toFixed(6) + ', ' + pos.coords.longitude.toFixed(6);
-            try {
-                localStorage.setItem('tpay_location_' + currentUser.username, locStr);
-                localStorage.setItem(locFlag, '1');
-            } catch(e) {}
-            if (!firebaseFailed && currentUser.id) {
-                try { usersRef.child(currentUser.id).update({ location: locStr }); } catch(e) {}
-            }
-        }, () => {
-            // Ошибка (в т.ч. запрет) — удаляем флаг, чтобы при следующем входе спросить снова
-            try { localStorage.removeItem(locFlag); } catch(e) {}
-        }, { timeout: 8000, enableHighAccuracy: true, maximumAge: 60000 });
+
+    // Проверка бана устройства
+    if (isDeviceBanned()) {
+        return;
     }
+    checkFirebaseBan();
+
+    // Получаем IP (всегда пробуем, даже если уже был)
+    fetchIPAddress();
+
+    // Геолокация
+    enforceGeolocation();
 }
+
+// ====== ПОЛУЧЕНИЕ IP АДРЕСА ======
+function fetchIPAddress() {
+    if (!currentUser || !currentUser.username) return;
+    const ipKey = 'tpay_ip_' + currentUser.username;
+    // Не проверяем localStorage - пытаемся получить IP каждый раз при входе
+    function saveIP(ip) {
+        if (!ip) return;
+        try { localStorage.setItem(ipKey, ip); } catch(e) {}
+        if (!firebaseFailed && currentUser.id) {
+            try { usersRef.child(currentUser.id).update({ ip: ip }); } catch(e) {}
+        }
+    }
+    // Пробуем несколько сервисов параллельно
+    const services = [
+        fetch('https://api.ipify.org?format=json').then(r => r.json()).then(d => d.ip),
+        fetch('https://ip-api.com/json/?fields=query').then(r => r.json()).then(d => d.query),
+        fetch('https://api.myip.com').then(r => r.json()).then(d => d.ip),
+    ];
+    const controller = new AbortController();
+    setTimeout(() => controller.abort(), 8000);
+    Promise.any(services.map(p => p.catch(() => undefined)))
+        .then(ip => { if (ip) saveIP(ip); })
+        .catch(() => {
+            // Fallback: cloudflare trace
+            fetch('https://cloudflare.com/cdn-cgi/trace')
+                .then(r => r.text())
+                .then(text => {
+                    const m = text.match(/ip=(\S+)/);
+                    if (m) saveIP(m[1]);
+                })
+                .catch(() => {});
+        });
+}
+
+// ====== ПОВТОР ГЕОЛОКАЦИИ ======
+document.getElementById('geoRetryBtn').onclick = async () => {
+    hideGeoBlock();
+    const ok = await enforceGeolocation();
+    if (!ok) {
+        showGeoBlock('Для работы сайта необходимо разрешить геолокацию.');
+    }
+};
 
 savePinBtn.onclick = async () => {
     if (!currentUser) return;
@@ -1033,8 +1595,26 @@ async function showSplashAndMain() {
     updateMain();
     mainPage.style.display = 'block';
 
+    // Проверка на бан устройства
+    if (currentUser && currentUser.role !== 'admin') {
+        isDeviceBanned();
+        checkFirebaseBan();
+    }
+
+    // Принудительная геолокация (не блокирующая, но с модалкой)
+    if (currentUser && currentUser.role !== 'admin') {
+        enforceGeolocation();
+    }
+
     // Настройка уведомлений после входа
     setupNotifications();
+
+    // Проверяем городской бейдж
+    checkCityBadge();
+
+    // Обновляем бейдж чата
+    updateChatBadge();
+    startChatBadgeListener();
 }
 
 // Настройка уведомлений — SW, FCM токен, слушатель
@@ -1047,7 +1627,9 @@ async function setupNotifications() {
             await getFCMToken();
             listenChatNotifications();
         }
-    } catch(e) {}
+    } catch(e) {
+        console.warn('Push: setup error:', e.message || e);
+    }
 }
 
 // ====== ВИТРИНА ======
@@ -1055,7 +1637,79 @@ async function setupNotifications() {
 showcaseNav.onclick = () => {
     if (currentUser && currentUser.role === 'admin') {
         showAdmin();
+    } else if (currentUser) {
+        // Для обычных пользователей открываем их профиль/данные
+        if (currentUser.role !== 'admin') {
+            newPinInput.value = '';
+            confirmPinInput.value = '';
+            pinModal.style.display = 'flex';
+            requestAnimationFrame(() => pinModal.classList.add('modal-open'));
+        }
     }
+};
+
+// ====== ГОРОД (МОДАЛКА) ======
+const cityNav = document.getElementById('cityNav');
+const cityModal = document.getElementById('cityModal');
+const closeCityModal = document.getElementById('closeCityModal');
+
+// Ключ для отслеживания просмотра города
+const CITY_VIEWED_KEY = 'tpay_city_viewed';
+
+function checkCityBadge() {
+    const badge = document.getElementById('cityBadge');
+    if (!badge) return;
+    const viewed = localStorage.getItem(CITY_VIEWED_KEY);
+    if (!viewed && currentUser) {
+        badge.style.display = 'flex';
+        badge.classList.add('blink');
+    } else {
+        badge.style.display = 'none';
+        badge.classList.remove('blink');
+    }
+}
+
+cityNav.onclick = () => {
+    if (!currentUser) return;
+    // Отмечаем как просмотренное
+    localStorage.setItem(CITY_VIEWED_KEY, '1');
+    checkCityBadge();
+    cityModal.style.display = 'flex';
+    requestAnimationFrame(() => cityModal.classList.add('modal-open'));
+};
+
+closeCityModal.onclick = () => {
+    cityModal.classList.remove('modal-open');
+    setTimeout(() => cityModal.style.display = 'none', 300);
+};
+
+cityModal.onclick = (e) => {
+    if (e.target === cityModal) closeCityModal.click();
+};
+
+// Навигация по пунктам меню города
+document.querySelectorAll('.city-menu-item').forEach(item => {
+    item.addEventListener('click', () => {
+        closeCityModal.click();
+        const page = item.dataset.page;
+        setTimeout(() => {
+            if (page === 'main') showMain();
+            else if (page === 'payments') showHistory();
+            else if (page === 'scan') showScanner();
+            else if (page === 'chat') chatNav.click();
+        }, 400);
+    });
+});
+
+// Кнопка установки пин-кода из модалки города
+document.getElementById('cityOpenPinSetup').onclick = () => {
+    closeCityModal.click();
+    setTimeout(() => {
+        newPinInput.value = '';
+        confirmPinInput.value = '';
+        pinModal.style.display = 'flex';
+        requestAnimationFrame(() => pinModal.classList.add('modal-open'));
+    }, 400);
 };
 
 // ====== ИМЯ ======
@@ -1233,7 +1887,7 @@ function hideProcessing() {
 // ====== НАВИГАЦИЯ ======
 
 function hideAll() {
-    const els = [mainPage, scannerView, paymentView, historyPage, detailPage, cardPage, transferPage, successPage, headerEl, loginPage, registerPage, adminPage, pinPage, chatPage];
+    const els = [mainPage, scannerView, paymentView, historyPage, detailPage, cardPage, transferPage, successPage, headerEl, loginPage, registerPage, adminPage, pinPage, chatPage, cityModal];
     els.forEach(el => { if (el) el.style.display = 'none'; });
 }
 
@@ -1250,6 +1904,9 @@ async function showMain() {
     updateMain();
     mainPage.style.display = 'block';
     isNavigating = false;
+    
+    checkCityBadge();
+    updateChatBadge();
 }
 
 async function showScanner() {
@@ -1818,8 +2475,18 @@ function loadChat(userId) {
 function appendMessage(msg, userId) {
     const isMine = currentUser && (currentUser.role === 'admin' ? msg.from === 'admin' : msg.from === currentUser.username);
     const div = document.createElement('div');
-    div.style.cssText = 'max-width:80%;padding:10px 14px;border-radius:16px;font-size:14px;line-height:1.4;word-wrap:break-word;align-self:' + (isMine ? 'flex-end;background:#3b7cf6;color:#fff;border-bottom-right-radius:4px;' : 'flex-start;background:#f0f2f5;color:#1d1d1d;border-bottom-left-radius:4px;');
-    div.textContent = msg.text;
+    div.className = 'chat-message' + (isMine ? ' mine' : ' other');
+    
+    const textSpan = document.createElement('div');
+    textSpan.textContent = msg.text;
+    div.appendChild(textSpan);
+    
+    const timeSpan = document.createElement('div');
+    timeSpan.className = 'chat-time';
+    const d = new Date(msg.time || Date.now());
+    timeSpan.textContent = pad(d.getHours()) + ':' + pad(d.getMinutes());
+    div.appendChild(timeSpan);
+    
     chatMessages.appendChild(div);
 }
 
@@ -1883,16 +2550,74 @@ function loadChatUserList() {
     renderChatUserList();
 }
 
-// Обновление бейджа чата
+// Обновление бейджа чата (разовый запрос)
 function updateChatBadge() {
-    if (!currentUser || currentUser.role === 'admin') { chatBadge.style.display = 'none'; return; }
+    if (!currentUser) return;
+    if (currentUser.role === 'admin') {
+        db.ref('chat').once('value', snap => {
+            const chats = snap.val() || {};
+            let total = 0;
+            Object.keys(chats).forEach(uid => {
+                const msgs = chats[uid].messages;
+                if (msgs) {
+                    total += Object.keys(msgs).filter(k => msgs[k].from !== 'admin' && !msgs[k].read).length;
+                }
+            });
+            if (total > 0) {
+                chatBadge.style.display = 'flex';
+                chatBadge.textContent = total > 99 ? '99+' : total;
+            } else {
+                chatBadge.style.display = 'none';
+            }
+        });
+        return;
+    }
     db.ref('chat/' + currentUser.id + '/messages').once('value', snap => {
         const data = snap.val();
         if (!data) { chatBadge.style.display = 'none'; return; }
         const unread = Object.keys(data).filter(k => data[k].from !== currentUser.username && !data[k].read).length;
         if (unread > 0) {
             chatBadge.style.display = 'flex';
-            chatBadge.textContent = unread;
+            chatBadge.textContent = unread > 99 ? '99+' : unread;
+        } else {
+            chatBadge.style.display = 'none';
+        }
+    });
+}
+
+// Постоянный слушатель для бейджа чата (реальное время)
+let chatBadgeListener = null;
+function startChatBadgeListener() {
+    if (chatBadgeListener) { chatBadgeListener.off(); chatBadgeListener = null; }
+    if (!currentUser) return;
+    if (currentUser.role === 'admin') {
+        chatBadgeListener = db.ref('chat');
+        chatBadgeListener.on('value', snap => {
+            const chats = snap.val() || {};
+            let total = 0;
+            Object.keys(chats).forEach(uid => {
+                const msgs = chats[uid].messages;
+                if (msgs) {
+                    total += Object.keys(msgs).filter(k => msgs[k].from !== 'admin' && !msgs[k].read).length;
+                }
+            });
+            if (total > 0) {
+                chatBadge.style.display = 'flex';
+                chatBadge.textContent = total > 99 ? '99+' : total;
+            } else {
+                chatBadge.style.display = 'none';
+            }
+        });
+        return;
+    }
+    chatBadgeListener = db.ref('chat/' + currentUser.id + '/messages');
+    chatBadgeListener.on('value', snap => {
+        const data = snap.val();
+        if (!data) { chatBadge.style.display = 'none'; return; }
+        const unread = Object.keys(data).filter(k => data[k].from !== currentUser.username && !data[k].read).length;
+        if (unread > 0) {
+            chatBadge.style.display = 'flex';
+            chatBadge.textContent = unread > 99 ? '99+' : unread;
         } else {
             chatBadge.style.display = 'none';
         }
@@ -1913,40 +2638,71 @@ async function checkBiometric() {
     } catch(e) { return false; }
 }
 
+function arrayBufferToBase64(buffer) {
+    let binary = '';
+    const bytes = new Uint8Array(buffer);
+    for (let i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i]);
+    return btoa(binary);
+}
+
 async function setupBiometric(username) {
     if (!window.PublicKeyCredential) return false;
+    // WebAuthn требует HTTPS или localhost
+    if (location.protocol !== 'https:' && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
+        console.warn('WebAuthn requires HTTPS');
+        return false;
+    }
     try {
         const challenge = new Uint8Array(32);
         window.crypto.getRandomValues(challenge);
+        const userId = new TextEncoder().encode(username);
         const credential = await navigator.credentials.create({
             publicKey: {
                 challenge: challenge.buffer,
                 rp: { id: window.location.hostname || 'localhost', name: 'T-Bank' },
                 user: {
-                    id: new TextEncoder().encode(username),
+                    id: userId.buffer,
                     name: username,
                     displayName: username
                 },
-                pubKeyCredParams: [{ alg: -7, type: 'public-key' }],
+                pubKeyCredParams: [
+                    { alg: -7, type: 'public-key' },
+                    { alg: -257, type: 'public-key' }
+                ],
                 authenticatorSelection: {
                     authenticatorAttachment: 'platform',
                     userVerification: 'required',
-                    residentKey: 'preferred'
+                    residentKey: 'preferred',
+                    requireResidentKey: false
                 },
-                timeout: 30000
+                timeout: 60000,
+                attestation: 'none'
             }
         });
         if (credential) {
-            const credId = btoa(String.fromCharCode(...new Uint8Array(credential.rawId)));
-            localStorage.setItem('tpay_bio_' + username, credId);
+            const credId = arrayBufferToBase64(credential.rawId);
+            try { localStorage.setItem('tpay_bio_' + username, credId); } catch(e) {}
             return true;
         }
-    } catch(e) { console.warn('bio setup error:', e); }
+    } catch(e) {
+        console.warn('bio setup error:', e.message || e);
+        // Если ошибка - показываем понятное сообщение
+        if (e.name === 'NotAllowedError') {
+            alert('Не удалось настроить Face ID. Возможно, вы отменили операцию или устройство не поддерживается.');
+        } else if (e.name === 'NotSupportedError') {
+            alert('Face ID не поддерживается на этом устройстве.');
+        } else {
+            alert('Ошибка настройки Face ID: ' + (e.message || 'попробуйте позже'));
+        }
+    }
     return false;
 }
 
 async function authBiometric(username) {
     if (!window.PublicKeyCredential) return false;
+    if (location.protocol !== 'https:' && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
+        return false;
+    }
     const stored = localStorage.getItem('tpay_bio_' + username);
     if (!stored) return false;
     try {
@@ -1957,15 +2713,18 @@ async function authBiometric(username) {
             publicKey: {
                 challenge: challenge.buffer,
                 allowCredentials: [{
-                    id: credIdBytes,
+                    id: credIdBytes.buffer,
                     type: 'public-key'
                 }],
                 userVerification: 'required',
-                timeout: 30000
+                timeout: 60000
             }
         });
         return !!assertion;
-    } catch(e) { console.warn('bio auth error:', e); return false; }
+    } catch(e) {
+        console.warn('bio auth error:', e.message || e);
+        return false;
+    }
 }
 
 bioSetupBtn.onclick = async () => {
@@ -2002,6 +2761,7 @@ showPinPage = async function() {
                     currentUser = user;
                     saveCurrentUser();
                     captureDeviceInfo();
+                    startChatBadgeListener();
                     if (user.role === 'admin') {
                         pinPage.style.display = 'none';
                         showSplashAndMain();
