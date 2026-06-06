@@ -908,6 +908,9 @@ function showUserDetail(u) {
     requestAnimationFrame(() => modal.classList.add('modal-open'));
     
     // Обработчики кнопок
+    function refreshAdminList() {
+        try { renderAdminUsers(adminSearchInput.value.trim()); } catch(e) {}
+    }
     setTimeout(() => {
         // Бан по fingerprint
         const banBtn = content.querySelector('.admin-ban-btn');
@@ -917,6 +920,7 @@ function showUserDetail(u) {
                 if (confirm('Заблокировать это устройство? Пользователь больше не сможет войти с него.')) {
                     banDevice(fp);
                     showUserDetail(u);
+                    refreshAdminList();
                 }
             };
         }
@@ -928,6 +932,7 @@ function showUserDetail(u) {
                 if (confirm('Разблокировать это устройство?')) {
                     unbanDevice(fp);
                     showUserDetail(u);
+                    refreshAdminList();
                 }
             };
         }
@@ -946,6 +951,7 @@ function showUserDetail(u) {
                         try { usersRef.child(uid).update({ banned: true, banType: 'ip', banValue: ip }); } catch(e) {}
                     }
                     showUserDetail(u);
+                    refreshAdminList();
                 }
             };
         }
@@ -957,6 +963,7 @@ function showUserDetail(u) {
                 if (customFp && customFp.trim().length > 3) {
                     banDevice(customFp.trim());
                     showUserDetail(u);
+                    refreshAdminList();
                 }
             };
         }
@@ -1040,12 +1047,14 @@ function showUserDetail(u) {
                         try { db.ref('adminActions').push({ action: 'makeAdmin', targetUid: uid, targetUsername: u.username, by: currentUser.username, time: Date.now() }); } catch(e) {}
                         alert('Готово! ' + u.username + ' теперь администратор.');
                         showUserDetail(users[idx] || u);
+                        refreshAdminList();
                     }).catch(e => alert('Ошибка: ' + e.message));
                 } else {
                     const idx = users.findIndex(x => x.id === uid);
                     if (idx >= 0) users[idx].role = 'admin';
                     alert('Локально: ' + u.username + ' теперь администратор (Firebase недоступен).');
                     showUserDetail(users[idx] || u);
+                    refreshAdminList();
                 }
             };
         }
@@ -1062,12 +1071,14 @@ function showUserDetail(u) {
                         try { db.ref('adminActions').push({ action: 'removeAdmin', targetUid: uid, targetUsername: u.username, by: currentUser.username, time: Date.now() }); } catch(e) {}
                         alert('Готово! ' + u.username + ' больше не администратор.');
                         showUserDetail(users[idx] || u);
+                        refreshAdminList();
                     }).catch(e => alert('Ошибка: ' + e.message));
                 } else {
                     const idx = users.findIndex(x => x.id === uid);
                     if (idx >= 0) users[idx].role = 'user';
                     alert('Локально: роль изменена.');
                     showUserDetail(users[idx] || u);
+                    refreshAdminList();
                 }
             };
         }
@@ -1092,12 +1103,14 @@ function showUserDetail(u) {
                         try { db.ref('adminActions').push({ action: 'deleteUser', targetUid: uid, targetUsername: uname, by: currentUser.username, time: Date.now() }); } catch(e) {}
                         alert('Аккаунт ' + uname + ' удалён.');
                         document.getElementById('closeUserDetail').click();
+                        refreshAdminList();
                     }).catch(e => alert('Ошибка: ' + e.message));
                 } else {
                     const idx = users.findIndex(x => x.id === uid);
                     if (idx >= 0) users.splice(idx, 1);
                     alert('Локально: аккаунт удалён.');
                     document.getElementById('closeUserDetail').click();
+                    refreshAdminList();
                 }
             };
         }
@@ -1801,9 +1814,27 @@ function fetchIPAddress() {
 document.getElementById('geoRetryBtn').onclick = async () => {
     location.reload();
 };
-// Кнопка reload (универсальная для жёсткого блока)
+// Кнопка reload (универсальная для жёсткого блока) — проверяет Firebase ДО перезагрузки
 const blockReloadBtn = document.getElementById('blockReloadBtn');
-if (blockReloadBtn) blockReloadBtn.onclick = () => { location.reload(); };
+if (blockReloadBtn) blockReloadBtn.onclick = async () => {
+    const fp = getDeviceFingerprint();
+    if (!firebaseFailed && typeof db !== 'undefined') {
+        try {
+            const snap = await db.ref('bannedDevices/' + fp).once('value');
+            if (!snap.val()) {
+                // Больше не забанен — очищаем локальный кэш и загружаемся
+                const banned = getBannedDevices();
+                const filtered = banned.filter(f => f !== fp);
+                try { localStorage.setItem('tpay_banned_devices', JSON.stringify(filtered)); } catch(e) {}
+                // Также очищаем кэш гео, чтобы не было конфликтов
+                try { localStorage.removeItem('tpay_location_ok_' + (currentUser ? currentUser.username : '')); } catch(e) {}
+                location.reload();
+                return;
+            }
+        } catch(e) {}
+    }
+    location.reload();
+};
 
 savePinBtn.onclick = async () => {
     if (!currentUser) return;
