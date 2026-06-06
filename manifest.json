@@ -7,6 +7,9 @@
   "display": "standalone",
   "background_color": "#FFDD2D",
   "theme_color": "#FFDD2D",
+  "orientation": "portrait",
+  "categories": ["finance", "transportation"],
+  "splash_pages": null,
   "icons": [
     {
       "src": "assets/ico/tbank.png",

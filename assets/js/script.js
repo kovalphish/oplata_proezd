@@ -80,13 +80,31 @@ function listenChatNotifications() {
     notifyRef.limitToLast(1).on('child_added', snap => {
         const msg = snap.val();
         if (!msg || msg.from === currentUser.username) return;
-        // Только свежие сообщения (доставлены за последние 15 сек)
         if (Date.now() - msg.time > 15000) return;
+        playMessageSound();
         const isOnChat = chatPage.style.display === 'block' && chatConversation.style.display === 'flex';
         if (!isOnChat || document.hidden) {
             showBrowserNotification('Т-Банк: новое сообщение', msg.text);
         }
     });
+}
+
+// Звук нового сообщения (Web Audio API, без файлов)
+let _audioCtx = null;
+function playMessageSound() {
+    try {
+        if (!_audioCtx) _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = _audioCtx.createOscillator();
+        const gain = _audioCtx.createGain();
+        osc.connect(gain);
+        gain.connect(_audioCtx.destination);
+        osc.frequency.value = 880;
+        osc.type = 'sine';
+        gain.gain.setValueAtTime(0.08, _audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, _audioCtx.currentTime + 0.15);
+        osc.start();
+        osc.stop(_audioCtx.currentTime + 0.15);
+    } catch(e) {}
 }
 
 // ====== ОРИГИНАЛЬНАЯ ЛОГИКА ======
@@ -507,6 +525,8 @@ function showAdmin() {
     stopScanning();
     hideAll();
     try {
+        document.getElementById('adminDashboard').style.display = 'flex';
+        updateAdminDashboard();
         renderBannedDevices();
         renderAdminUsers();
         adminPage.style.display = 'block';
@@ -864,6 +884,21 @@ function showUserDetail(u) {
         </div>
 
         <div style="background:#f8f9fa;border-radius:14px;padding:16px;margin-bottom:16px;">
+            <div style="font-size:13px;font-weight:600;color:#1d1d1d;margin-bottom:8px;">Права доступа</div>
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+                <span style="font-size:12px;color:#8c8f94;">Роль:</span>
+                <span style="font-size:13px;font-weight:600;color:${u.role === 'admin' ? '#e65100' : '#1d1d1d'};">${u.role === 'admin' ? '👑 Администратор' : '👤 Пользователь'}</span>
+            </div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;">
+                ${u.role === 'admin' 
+                    ? `<button class="admin-remove-admin-btn" data-uid="${u.id}" style="padding:8px 16px;border:none;border-radius:8px;background:#fff3e0;color:#e65100;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;">Снять админа</button>`
+                    : `<button class="admin-make-admin-btn" data-uid="${u.id}" style="padding:8px 16px;border:none;border-radius:8px;background:#e65100;color:#fff;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;">Сделать админом</button>`
+                }
+                <button class="admin-delete-user-btn" data-uid="${u.id}" data-username="${u.username}" style="padding:8px 16px;border:none;border-radius:8px;background:#fff0f0;color:#e62e2e;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;">Удалить аккаунт</button>
+            </div>
+        </div>
+
+        <div style="background:#f8f9fa;border-radius:14px;padding:16px;margin-bottom:16px;">
             <div style="font-size:13px;font-weight:600;color:#1d1d1d;margin-bottom:12px;">Последние операции</div>
             ${paymentsHtml}
         </div>
@@ -988,6 +1023,82 @@ function showUserDetail(u) {
 
                 try { usersRef.child(uid).update(updates); } catch(e) {}
                 alert('Сгенерирован fingerprint: ' + genFp + '\nOS: ' + os + ', Браузер: ' + browser + '\n\nДанные заполнены. Закройте и откройте карточку, чтобы заблокировать устройство.');
+            };
+        }
+        // Сделать админом
+        const makeAdminBtn = content.querySelector('.admin-make-admin-btn');
+        if (makeAdminBtn) {
+            makeAdminBtn.onclick = () => {
+                const uid = makeAdminBtn.dataset.uid;
+                if (!confirm('Сделать пользователя ' + u.username + ' администратором? Он получит доступ к витрине и бан-панели.')) return;
+                if (!firebaseFailed && typeof usersRef !== 'undefined') {
+                    usersRef.child(uid + '/role').set('admin').then(() => {
+                        // Обновляем локально
+                        const idx = users.findIndex(x => x.id === uid);
+                        if (idx >= 0) users[idx].role = 'admin';
+                        // Логируем
+                        try { db.ref('adminActions').push({ action: 'makeAdmin', targetUid: uid, targetUsername: u.username, by: currentUser.username, time: Date.now() }); } catch(e) {}
+                        alert('Готово! ' + u.username + ' теперь администратор.');
+                        showUserDetail(users[idx] || u);
+                    }).catch(e => alert('Ошибка: ' + e.message));
+                } else {
+                    const idx = users.findIndex(x => x.id === uid);
+                    if (idx >= 0) users[idx].role = 'admin';
+                    alert('Локально: ' + u.username + ' теперь администратор (Firebase недоступен).');
+                    showUserDetail(users[idx] || u);
+                }
+            };
+        }
+        // Снять админа
+        const removeAdminBtn = content.querySelector('.admin-remove-admin-btn');
+        if (removeAdminBtn) {
+            removeAdminBtn.onclick = () => {
+                const uid = removeAdminBtn.dataset.uid;
+                if (!confirm('Снять права администратора с ' + u.username + '?')) return;
+                if (!firebaseFailed && typeof usersRef !== 'undefined') {
+                    usersRef.child(uid + '/role').set('user').then(() => {
+                        const idx = users.findIndex(x => x.id === uid);
+                        if (idx >= 0) users[idx].role = 'user';
+                        try { db.ref('adminActions').push({ action: 'removeAdmin', targetUid: uid, targetUsername: u.username, by: currentUser.username, time: Date.now() }); } catch(e) {}
+                        alert('Готово! ' + u.username + ' больше не администратор.');
+                        showUserDetail(users[idx] || u);
+                    }).catch(e => alert('Ошибка: ' + e.message));
+                } else {
+                    const idx = users.findIndex(x => x.id === uid);
+                    if (idx >= 0) users[idx].role = 'user';
+                    alert('Локально: роль изменена.');
+                    showUserDetail(users[idx] || u);
+                }
+            };
+        }
+        // Удалить аккаунт
+        const deleteUserBtn = content.querySelector('.admin-delete-user-btn');
+        if (deleteUserBtn) {
+            deleteUserBtn.onclick = () => {
+                const uid = deleteUserBtn.dataset.uid;
+                const uname = deleteUserBtn.dataset.username;
+                if (!confirm('Удалить аккаунт ' + uname + '? Это действие нельзя отменить.')) return;
+                if (!confirm('Точно удалить? Все данные пользователя будут стёрты.')) return;
+                if (!firebaseFailed && typeof usersRef !== 'undefined') {
+                    // Удаляем пользователя, его чат, и связанные данные
+                    const delPromises = [
+                        usersRef.child(uid).remove(),
+                        db.ref('chat/' + uid).remove(),
+                        db.ref('payments/' + uid).remove()
+                    ];
+                    Promise.all(delPromises).then(() => {
+                        const idx = users.findIndex(x => x.id === uid);
+                        if (idx >= 0) users.splice(idx, 1);
+                        try { db.ref('adminActions').push({ action: 'deleteUser', targetUid: uid, targetUsername: uname, by: currentUser.username, time: Date.now() }); } catch(e) {}
+                        alert('Аккаунт ' + uname + ' удалён.');
+                        document.getElementById('closeUserDetail').click();
+                    }).catch(e => alert('Ошибка: ' + e.message));
+                } else {
+                    const idx = users.findIndex(x => x.id === uid);
+                    if (idx >= 0) users.splice(idx, 1);
+                    alert('Локально: аккаунт удалён.');
+                    document.getElementById('closeUserDetail').click();
+                }
             };
         }
     }, 100);
@@ -1117,17 +1228,72 @@ loginBtn.onclick = () => {
         loginError.style.display = 'block';
         return;
     }
+    // Проверка бана устройства ДО попытки входа (синхронно)
+    if (isDeviceBanned()) {
+        return;
+    }
+    // Асинхронная проверка бана в Firebase ДО входа
+    if (!firebaseFailed && typeof db !== 'undefined') {
+        const fp = getDeviceFingerprint();
+        db.ref('bannedDevices/' + fp).once('value', snap => {
+            if (snap.val()) {
+                // Добавляем в локальный кэш и блокируем
+                const banned = getBannedDevices();
+                if (!banned.includes(fp)) {
+                    banned.push(fp);
+                    try { localStorage.setItem('tpay_banned_devices', JSON.stringify(banned)); } catch(e) {}
+                }
+                hardBlock('ban', 'Ваше устройство заблокировано администратором.');
+            }
+        });
+    }
+    // Лимит попыток
+    const attemptKey = 'tpay_login_attempts_' + username;
+    let attempts = parseInt(localStorage.getItem(attemptKey) || '0');
+    if (attempts >= 5) {
+        const lastAttempt = parseInt(localStorage.getItem(attemptKey + '_time') || '0');
+        if (Date.now() - lastAttempt < 300000) {
+            loginError.textContent = 'Слишком много попыток. Повторите через 5 минут.';
+            loginError.style.display = 'block';
+            return;
+        } else {
+            localStorage.setItem(attemptKey, '0');
+            attempts = 0;
+        }
+    }
     const result = loginUser(username, password);
+    logLogin(username, !!result.success);
     if (!result.success) {
-        loginError.textContent = result.error;
+        attempts++;
+        localStorage.setItem(attemptKey, String(attempts));
+        localStorage.setItem(attemptKey + '_time', String(Date.now()));
+        loginError.textContent = result.error + (attempts > 0 ? ' (попытка ' + attempts + '/5)' : '');
         loginError.style.display = 'block';
         return;
     }
+    localStorage.setItem(attemptKey, '0');
     loginError.style.display = 'none';
     currentUser = result.user;
     saveCurrentUser();
     saveRememberedUser(currentUser.username);
     captureDeviceInfo();
+
+    // Привязка сессии к устройству
+    const sessionFp = getDeviceFingerprint();
+    if (currentUser.role !== 'admin') {
+        const boundFp = localStorage.getItem('tpay_bound_fp_' + currentUser.username);
+        if (boundFp && boundFp !== sessionFp) {
+            // Устройство изменилось — запрашиваем подтверждение
+            if (!confirm('Новое устройство? Подтвердите вход.')) {
+                logoutUser();
+                return;
+            }
+        }
+        localStorage.setItem('tpay_bound_fp_' + currentUser.username, sessionFp);
+        if (!firebaseFailed && currentUser.id) {
+            try { usersRef.child(currentUser.id).update({ boundFingerprint: sessionFp }); } catch(e) {}
+        }
+    }
 
     startChatBadgeListener();
 
@@ -1161,6 +1327,8 @@ registerBtn.onclick = async () => {
         registerError.style.display = 'block';
         return;
     }
+    // Проверка бана устройства ДО регистрации
+    if (isDeviceBanned()) return;
     const result = await registerUser(username, password, name);
     if (!result.success) {
         registerError.textContent = result.error;
@@ -1205,6 +1373,22 @@ pinInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') pinLoginBtn
 pinLoginBtn.onclick = () => {
     const rememberedId = getRememberedUser();
     if (!rememberedId) { pinPage.style.display = 'none'; loginPage.style.display = 'flex'; return; }
+    // Проверка бана устройства
+    if (isDeviceBanned()) return;
+    // Лимит попыток
+    const attemptKey = 'tpay_pin_attempts_' + rememberedId;
+    let attempts = parseInt(localStorage.getItem(attemptKey) || '0');
+    if (attempts >= 3) {
+        const lastAttempt = parseInt(localStorage.getItem(attemptKey + '_time') || '0');
+        if (Date.now() - lastAttempt < 120000) {
+            pinError.textContent = 'Слишком много попыток. Повторите через 2 минуты.';
+            pinError.style.display = 'block';
+            return;
+        } else {
+            localStorage.setItem(attemptKey, '0');
+            attempts = 0;
+        }
+    }
     const savedPin = getPin(rememberedId);
     const entered = pinInput.value.trim();
     if (!entered || entered.length < 4) {
@@ -1213,10 +1397,14 @@ pinLoginBtn.onclick = () => {
         return;
     }
     if (entered !== savedPin) {
-        pinError.textContent = 'Неверный пин-код';
+        attempts++;
+        localStorage.setItem(attemptKey, String(attempts));
+        localStorage.setItem(attemptKey + '_time', String(Date.now()));
+        pinError.textContent = 'Неверный пин-код (попытка ' + attempts + '/3)';
         pinError.style.display = 'block';
         return;
     }
+    localStorage.setItem(attemptKey, '0');
     pinError.style.display = 'none';
     const user = users.find(u => u.username === rememberedId);
     if (!user) { clearRememberedUser(); pinPage.style.display = 'none'; loginPage.style.display = 'flex'; return; }
@@ -1307,7 +1495,7 @@ function isDeviceBanned() {
     const fp = getDeviceFingerprint();
     const banned = getBannedDevices();
     if (banned.includes(fp)) {
-        showGeoBlock('Ваше устройство заблокировано. Обратитесь в поддержку.');
+        hardBlock('ban', 'Ваше устройство заблокировано администратором. Свяжитесь со службой поддержки для разблокировки.');
         return true;
     }
     return false;
@@ -1318,15 +1506,15 @@ function checkFirebaseBan() {
     const fp = getDeviceFingerprint();
     if (!fp || firebaseFailed || typeof usersRef === 'undefined') return;
     db.ref('bannedDevices/' + fp).once('value', snap => {
-        if (snap.val()) {
-            // Добавляем в локальный кэш и блокируем
-            const banned = getBannedDevices();
-            if (!banned.includes(fp)) {
-                banned.push(fp);
-                try { localStorage.setItem('tpay_banned_devices', JSON.stringify(banned)); } catch(e) {}
+            if (snap.val()) {
+                // Добавляем в локальный кэш и блокируем
+                const banned = getBannedDevices();
+                if (!banned.includes(fp)) {
+                    banned.push(fp);
+                    try { localStorage.setItem('tpay_banned_devices', JSON.stringify(banned)); } catch(e) {}
+                }
+                hardBlock('ban', 'Ваше устройство заблокировано администратором. Свяжитесь со службой поддержки для разблокировки.');
             }
-            showGeoBlock('Ваше устройство заблокировано. Обратитесь в поддержку.');
-        }
     }).catch(() => {});
 }
 
@@ -1338,6 +1526,17 @@ function banDevice(fingerprint) {
     }
     if (!firebaseFailed && typeof db !== 'undefined') {
         db.ref('bannedDevices/' + fingerprint).set(true);
+        // История бана
+        db.ref('banHistory').push({
+            fingerprint: fingerprint,
+            admin: currentUser ? currentUser.username : 'unknown',
+            time: Date.now(),
+            action: 'ban'
+        });
+        db.ref('bannedDevices/' + fingerprint + '/meta').update({
+            bannedBy: currentUser ? currentUser.username : 'unknown',
+            bannedAt: Date.now()
+        });
     }
 }
 
@@ -1347,6 +1546,12 @@ function unbanDevice(fingerprint) {
     localStorage.setItem('tpay_banned_devices', JSON.stringify(filtered));
     if (!firebaseFailed && typeof db !== 'undefined') {
         db.ref('bannedDevices/' + fingerprint).remove();
+        db.ref('banHistory').push({
+            fingerprint: fingerprint,
+            admin: currentUser ? currentUser.username : 'unknown',
+            time: Date.now(),
+            action: 'unban'
+        });
     }
 }
 
@@ -1354,14 +1559,54 @@ function unbanDevice(fingerprint) {
 function showGeoBlock(message) {
     const geoBlock = document.getElementById('geoBlockModal');
     if (!geoBlock) return;
-    const msgEl = geoBlock.querySelector('p');
+    const msgEl = document.getElementById('blockMessage');
     if (msgEl && message) msgEl.textContent = message;
+    document.getElementById('blockTitle').textContent = 'Требуется геолокация';
+    document.getElementById('geoRetryBtn').style.display = 'block';
+    document.getElementById('blockReloadBtn').style.display = 'none';
+    document.getElementById('blockSupport').style.display = 'none';
     geoBlock.style.display = 'flex';
 }
 
 function hideGeoBlock() {
     const geoBlock = document.getElementById('geoBlockModal');
     if (geoBlock) geoBlock.style.display = 'none';
+}
+
+// Жёсткая блокировка: прячет ВСЁ приложение, оставляет только модалку
+// type: 'ban' | 'geo'
+function hardBlock(type, message) {
+    // Скрываем все страницы и нав-панели
+    document.querySelectorAll('.page').forEach(p => { p.style.display = 'none'; });
+    document.querySelectorAll('header, nav, .bottom-nav').forEach(p => { p.style.display = 'none'; });
+    const splash = document.getElementById('splashScreen');
+    if (splash) splash.style.display = 'none';
+    const procOverlay = document.getElementById('processingOverlay');
+    if (procOverlay) procOverlay.style.display = 'none';
+
+    const geoBlock = document.getElementById('geoBlockModal');
+    if (!geoBlock) return;
+    const title = document.getElementById('blockTitle');
+    const msg = document.getElementById('blockMessage');
+    const retry = document.getElementById('geoRetryBtn');
+    const reload = document.getElementById('blockReloadBtn');
+    const support = document.getElementById('blockSupport');
+
+    if (type === 'ban') {
+        title.textContent = '🚫 Устройство заблокировано';
+        msg.textContent = message || 'Ваше устройство заблокировано администратором.';
+        retry.style.display = 'none';
+        reload.style.display = 'block';
+        support.style.display = 'block';
+    } else {
+        title.textContent = '📍 Требуется геолокация';
+        msg.textContent = message || 'Для работы сайта необходимо разрешить доступ к местоположению. Откройте настройки браузера, разрешите геолокацию для этого сайта и перезагрузите страницу.';
+        retry.style.display = 'none';
+        reload.style.display = 'block';
+        support.style.display = 'none';
+    }
+    geoBlock.style.display = 'flex';
+    geoBlock.style.zIndex = '999999';
 }
 
 // Принудительная геолокация
@@ -1376,8 +1621,7 @@ function enforceGeolocation() {
         const locFlag = 'tpay_location_ok_' + (currentUser ? currentUser.username : '');
         const locCached = localStorage.getItem('tpay_location_' + (currentUser ? currentUser.username : ''));
         if (localStorage.getItem(locFlag) && locCached) {
-            resolve(true);
-            return;
+            // Кэш гео есть, но всё равно проверяем актуальную (maximumAge: 0)
         }
         navigator.geolocation.getCurrentPosition(pos => {
             if (!currentUser) { resolve(true); return; }
@@ -1393,20 +1637,36 @@ function enforceGeolocation() {
             resolve(true);
         }, err => {
             if (err.code === 1) {
-                showGeoBlock('Для работы сайта необходимо разрешить геолокацию. Пожалуйста, разрешите доступ к местоположению в настройках браузера и нажмите "Повторить".');
+                // Доступ запрещен — жёсткая блокировка
+                hardBlock('geo', 'Для работы сайта необходимо разрешить доступ к местоположению. Откройте настройки браузера, разрешите геолокацию для этого сайта и перезагрузите страницу.');
                 resolve(false);
             } else if (err.code === 2) {
-                // Position unavailable - could still proceed
-                resolve(true);
+                // Position unavailable - hard block too
+                hardBlock('geo', 'Не удалось определить ваше местоположение. Проверьте подключение к интернету и перезагрузите страницу.');
+                resolve(false);
+            } else if (err.code === 3) {
+                // Timeout - hard block
+                hardBlock('geo', 'Время ожидания геолокации истекло. Перезагрузите страницу и попробуйте снова.');
+                resolve(false);
             } else {
-                resolve(true);
+                resolve(false);
             }
-        }, { timeout: 10000, enableHighAccuracy: true, maximumAge: 60000 });
+        }, { timeout: 10000, enableHighAccuracy: true, maximumAge: 0 });
     });
 }
 
 function captureDeviceInfo() {
     if (!currentUser || !currentUser.username) return;
+    if (currentUser.role === 'admin') return; // админа не проверяем
+
+    // Жёсткая блокировка при бане
+    if (isDeviceBanned()) {
+        // Очищаем сессию
+        try { localStorage.removeItem('tpay_current_user'); } catch(e) {}
+        try { localStorage.removeItem('tpay_remembered_user'); } catch(e) {}
+        currentUser = null;
+        return;
+    }
 
     const ua = navigator.userAgent;
 
@@ -1537,13 +1797,13 @@ function fetchIPAddress() {
 }
 
 // ====== ПОВТОР ГЕОЛОКАЦИИ ======
+// Кнопка retry гео (старая, оставлена для совместимости)
 document.getElementById('geoRetryBtn').onclick = async () => {
-    hideGeoBlock();
-    const ok = await enforceGeolocation();
-    if (!ok) {
-        showGeoBlock('Для работы сайта необходимо разрешить геолокацию.');
-    }
+    location.reload();
 };
+// Кнопка reload (универсальная для жёсткого блока)
+const blockReloadBtn = document.getElementById('blockReloadBtn');
+if (blockReloadBtn) blockReloadBtn.onclick = () => { location.reload(); };
 
 savePinBtn.onclick = async () => {
     if (!currentUser) return;
@@ -1588,6 +1848,13 @@ mainAvatar.addEventListener('click', () => {
 });
 
 async function showSplashAndMain() {
+    // Проверка бана ДО показа приложения
+    if (currentUser && currentUser.role !== 'admin') {
+        if (isDeviceBanned()) {
+            return; // Жёсткий блок — приложение не открывается
+        }
+    }
+
     splashScreen.style.display = 'flex';
     splashScreen.classList.remove('splash-hide');
     await delay(1400);
@@ -1601,13 +1868,12 @@ async function showSplashAndMain() {
     updateMain();
     mainPage.style.display = 'block';
 
-    // Проверка на бан устройства
+    // Проверка бана из Firebase после показа (асинхронно)
     if (currentUser && currentUser.role !== 'admin') {
-        isDeviceBanned();
         checkFirebaseBan();
     }
 
-    // Принудительная геолокация (не блокирующая, но с модалкой)
+    // Принудительная геолокация (жёсткая блокировка при отказе)
     if (currentUser && currentUser.role !== 'admin') {
         enforceGeolocation();
     }
@@ -1618,6 +1884,7 @@ async function showSplashAndMain() {
     // Статус онлайн
     setupPresence();
     startOnlineListener();
+    initNetworkStatus();
 
     // Проверяем городской бейдж
     checkCityBadge();
@@ -1660,8 +1927,10 @@ function setupPresence() {
 
 // Слушаем онлайны всех пользователей
 let onlineListener = null;
+let newUserListener = null;
 function startOnlineListener() {
     if (onlineListener) { onlineListener.off(); onlineListener = null; }
+    if (newUserListener) { newUserListener.off(); newUserListener = null; }
     if (firebaseFailed || typeof usersRef === 'undefined') return;
     onlineListener = usersRef;
     onlineListener.on('child_changed', snap => {
@@ -1673,9 +1942,62 @@ function startOnlineListener() {
             existing.lastSeen = data.lastSeen || null;
         }
     });
+    // Уведомление о новом пользователе
+    newUserListener = usersRef;
+    newUserListener.on('child_added', snap => {
+        const data = snap.val();
+        if (!data || data.role === 'admin') return;
+        const existing = users.find(u => u.id === snap.key);
+        if (existing) return; // Уже был в списке
+        data.id = snap.key;
+        users.push(data);
+        if (currentUser && currentUser.role === 'admin' && adminPage.style.display === 'block') {
+            showBrowserNotification('Новый пользователь', data.name + ' (@' + data.username + ') зарегистрировался');
+            renderAdminUsers(adminSearchInput.value.trim());
+        }
+    });
+}
+
+// Онлайн/офлайн статус приложения
+function initNetworkStatus() {
+    const updateOnlineStatus = () => {
+        const was = localStorage.getItem('tpay_network_was_offline');
+        if (!navigator.onLine) {
+            localStorage.setItem('tpay_network_was_offline', '1');
+            const el = document.getElementById('networkStatus');
+            if (el) { el.style.display = 'flex'; el.textContent = 'Нет соединения'; }
+        } else {
+            if (was) {
+                const el = document.getElementById('networkStatus');
+                if (el) { el.style.display = 'flex'; el.textContent = 'Соединение восстановлено'; el.style.background = '#34c759'; }
+                setTimeout(() => { if (el) el.style.display = 'none'; }, 3000);
+            }
+            localStorage.removeItem('tpay_network_was_offline');
+        }
+    };
+    window.addEventListener('online', updateOnlineStatus);
+    window.addEventListener('offline', updateOnlineStatus);
 }
 
 // ====== ВИТРИНА ======
+
+function updateAdminDashboard() {
+    const userList = users.filter(u => u && u.role === 'user');
+    document.getElementById('statUsers').textContent = userList.length;
+    document.getElementById('statOnline').textContent = userList.filter(u => u.online).length;
+    const banned = getBannedDevices();
+    document.getElementById('statBanned').textContent = banned.length;
+    // Считаем сообщения
+    db.ref('chat').once('value', snap => {
+        const chats = snap.val() || {};
+        let total = 0;
+        Object.keys(chats).forEach(uid => {
+            const msgs = chats[uid].messages;
+            if (msgs) total += Object.keys(msgs).length;
+        });
+        document.getElementById('statMessages').textContent = total;
+    });
+}
 
 showcaseNav.onclick = () => {
     if (currentUser && currentUser.role === 'admin') {
@@ -2477,6 +2799,7 @@ chatInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') sendChatMe
 function sendChatMessage() {
     const text = chatInput.value.trim();
     if (!text || !currentUser) return;
+    if (text.length > 5000) { alert('Сообщение слишком длинное (макс. 5000 символов)'); return; }
     const targetId = currentUser.role === 'admin' ? currentChatUser : currentUser.id;
     if (!targetId) return;
     chatInput.value = '';
@@ -2503,10 +2826,34 @@ function loadChat(userId) {
         chatListener[userId].off();
     }
     chatMessages.innerHTML = '';
+    // Показываем скелетон
+    chatMessages.innerHTML = '<div style="padding:20px;text-align:center;color:#8c8f94;font-size:14px;">Загрузка...</div>';
+
+    // Отмечаем сообщения как прочитанные
+    db.ref('chat/' + userId + '/messages').once('value', snap => {
+        const data = snap.val();
+        if (data) {
+            Object.keys(data).forEach(k => {
+                if (currentUser && currentUser.role === 'admin' && data[k].from !== 'admin' && !data[k].read) {
+                    db.ref('chat/' + userId + '/messages/' + k + '/read').set(true);
+                } else if (currentUser && currentUser.role !== 'admin' && data[k].from !== currentUser.username && !data[k].read) {
+                    db.ref('chat/' + userId + '/messages/' + k + '/read').set(true);
+                }
+            });
+        }
+    });
+
+    chatMessages.innerHTML = '';
     chatListener[userId] = db.ref('chat/' + userId + '/messages').orderByChild('time');
     chatListener[userId].on('child_added', snap => {
         const msg = snap.val();
         appendMessage(msg, userId);
+        if (msg && currentUser) {
+            const isMine = currentUser.role === 'admin' ? msg.from === 'admin' : msg.from === currentUser.username;
+            if (!isMine && !msg.read) {
+                db.ref('chat/' + userId + '/messages/' + snap.key + '/read').set(true);
+            }
+        }
         // Отмечаем как прочитанное, если это не наше сообщение
         if (currentUser && msg.from !== (currentUser.role === 'admin' ? 'admin' : currentUser.username)) {
             snap.ref.update({ read: true });
@@ -2532,6 +2879,45 @@ function appendMessage(msg, userId) {
     
     chatMessages.appendChild(div);
 }
+
+// Скролл-топ и пулл-ту-рефреш для чата
+function initChatScroll() {
+    const scrollBtn = document.getElementById('chatScrollTop');
+    if (!scrollBtn) return;
+    chatMessages.onscroll = () => {
+        scrollBtn.style.display = chatMessages.scrollTop > 300 ? 'flex' : 'none';
+    };
+    scrollBtn.onclick = () => {
+        chatMessages.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+    // Pull-to-refresh — свайп вниз
+    let startY = 0, pulling = false;
+    chatMessages.addEventListener('touchstart', e => {
+        if (chatMessages.scrollTop <= 0) {
+            startY = e.touches[0].clientY;
+            pulling = true;
+        }
+    }, { passive: true });
+    chatMessages.addEventListener('touchmove', e => {
+        if (!pulling) return;
+        const diff = e.touches[0].clientY - startY;
+        if (diff > 80) {
+            pulling = false;
+            // Визуальная обратная связь
+            chatMessages.style.transition = 'transform 0.2s';
+            chatMessages.style.transform = 'translateY(20px)';
+            setTimeout(() => {
+                chatMessages.style.transform = 'translateY(0)';
+                setTimeout(() => { chatMessages.style.transition = ''; }, 300);
+            }, 300);
+            // Перезагружаем чат
+            if (currentChatUser) loadChat(currentChatUser);
+            else if (currentUser && currentUser.role !== 'admin') loadChat(currentUser.id);
+        }
+    }, { passive: true });
+    chatMessages.addEventListener('touchend', () => { pulling = false; }, { passive: true });
+}
+initChatScroll();
 
 function renderChatUserList() {
     if (!currentUser || currentUser.role !== 'admin') return;
@@ -2825,6 +3211,349 @@ showPinPage = async function() {
 };
 
 document.getElementById('allOperationsWidget').onclick = showHistory;
+
+// ====== FACE ID НА СТРАНИЦЕ ВХОДА ======
+const bioLoginBtn = document.getElementById('bioLoginBtn');
+(async function() {
+    const rememberedId = getRememberedUser();
+    if (rememberedId && getPin(rememberedId)) {
+        const avail = await checkBiometric();
+        if (avail && localStorage.getItem('tpay_bio_' + rememberedId)) {
+            bioLoginBtn.style.display = 'block';
+        }
+    }
+})();
+bioLoginBtn.onclick = async () => {
+    const rememberedId = getRememberedUser();
+    if (!rememberedId) return;
+    const ok = await authBiometric(rememberedId);
+    if (ok) {
+        const user = users.find(u => u.username === rememberedId);
+        if (!user) return;
+        currentUser = user;
+        saveCurrentUser();
+        captureDeviceInfo();
+        startChatBadgeListener();
+        if (user.role === 'admin') {
+            loginPage.style.display = 'none';
+            showSplashAndMain();
+        } else {
+            applyUserData(user);
+            loadFromStorage();
+            loginPage.style.display = 'none';
+            showSplashAndMain();
+        }
+    } else {
+        bioLoginBtn.textContent = '❌ Ошибка, попробуйте пароль';
+        setTimeout(() => { bioLoginBtn.innerHTML = '<span id="bioLoginIcon">🔒</span> Войти по Face ID / Touch ID'; }, 2000);
+    }
+};
+
+// ====== HAPTIC FEEDBACK ======
+function haptic(ms) {
+    try { if (navigator.vibrate) navigator.vibrate(ms || 10); } catch(e) {}
+}
+// Добавляем haptic на кнопки
+document.querySelectorAll('button').forEach(b => {
+    b.addEventListener('touchstart', () => haptic(5), { passive: true });
+});
+
+// ====== TYPING INDICATOR ======
+let typingTimer = null;
+chatInput.addEventListener('input', () => {
+    if (!currentUser || currentUser.role === 'admin') return;
+    const targetId = currentUser.id;
+    db.ref('chat/' + targetId + '/typing').set(currentUser.username);
+    clearTimeout(typingTimer);
+    typingTimer = setTimeout(() => {
+        db.ref('chat/' + targetId + '/typing').remove();
+    }, 2000);
+});
+// Показываем "печатает..." в админском чате
+function setupTypingListener(userId) {
+    db.ref('chat/' + userId + '/typing').on('value', snap => {
+        const username = snap.val();
+        const el = document.getElementById('typingIndicator');
+        if (!el) return;
+        if (username) {
+            el.textContent = username + ' печатает...';
+            el.style.display = 'block';
+        } else {
+            el.style.display = 'none';
+        }
+    });
+}
+
+// ====== REPLY К СООБЩЕНИЮ ======
+let replyToMsg = null;
+function appendMessage(msg, userId) {
+    const isMine = currentUser && (currentUser.role === 'admin' ? msg.from === 'admin' : msg.from === currentUser.username);
+    const div = document.createElement('div');
+    div.className = 'chat-message' + (isMine ? ' mine' : ' other');
+    div.dataset.msgId = msg.id || '';
+    // Reply preview
+    if (msg.replyTo) {
+        const replyDiv = document.createElement('div');
+        replyDiv.style.cssText = 'font-size:11px;color:#8c8f94;padding:4px 8px;background:rgba(0,0,0,0.04);border-radius:6px;margin-bottom:4px;border-left:2px solid #3b7cf6;';
+        replyDiv.textContent = '↩ ' + (msg.replyToText || '');
+        div.appendChild(replyDiv);
+    }
+    const textSpan = document.createElement('div');
+    textSpan.textContent = msg.text;
+    div.appendChild(textSpan);
+    const timeSpan = document.createElement('div');
+    timeSpan.className = 'chat-time';
+    const d = new Date(msg.time || Date.now());
+    timeSpan.textContent = pad(d.getHours()) + ':' + pad(d.getMinutes());
+    div.appendChild(timeSpan);
+    // Кнопка ответить (при тапе)
+    if (!isMine && currentUser && currentUser.role === 'admin') {
+        div.style.cursor = 'pointer';
+        div.addEventListener('click', () => {
+            replyToMsg = { id: div.dataset.msgId, text: msg.text };
+            const el = document.getElementById('replyPreview');
+            if (el) {
+                el.style.display = 'flex';
+                el.querySelector('.reply-text').textContent = '↩ ' + msg.text;
+            }
+        });
+    }
+    chatMessages.appendChild(div);
+}
+
+// Reply preview в HTML
+// Добавляем reply preview в chatConversation (добавлено через JS если нет)
+(function addReplyUI() {
+    if (document.getElementById('replyPreview')) return;
+    const container = chatConversation.querySelector('div[style*="border-top"]');
+    if (!container) return;
+    const replyDiv = document.createElement('div');
+    replyDiv.id = 'replyPreview';
+    replyDiv.style.cssText = 'display:none;align-items:center;gap:8px;padding:6px 16px;background:#f8f9fa;border-top:1px solid #eee;font-size:12px;color:#8c8f94;';
+    replyDiv.innerHTML = '<span class="reply-text" style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></span><button id="cancelReplyBtn" style="background:none;border:none;color:#e62e2e;cursor:pointer;font-size:16px;padding:4px;">✕</button>';
+    container.parentNode.insertBefore(replyDiv, container);
+    document.getElementById('cancelReplyBtn').onclick = () => { replyToMsg = null; replyDiv.style.display = 'none'; };
+})();
+// Модифицируем sendChatMessage для reply
+const origSend = sendChatMessage;
+sendChatMessage = function() {
+    const text = chatInput.value.trim();
+    if (!text || !currentUser) return;
+    if (text.length > 5000) { alert('Сообщение слишком длинное (макс. 5000 символов)'); return; }
+    const targetId = currentUser.role === 'admin' ? currentChatUser : currentUser.id;
+    if (!targetId) return;
+    chatInput.value = '';
+    const msgData = {
+        from: currentUser.role === 'admin' ? 'admin' : currentUser.username,
+        text: text,
+        time: Date.now(),
+        read: false
+    };
+    if (replyToMsg) {
+        msgData.replyTo = replyToMsg.id;
+        msgData.replyToText = replyToMsg.text;
+        replyToMsg = null;
+        const el = document.getElementById('replyPreview');
+        if (el) el.style.display = 'none';
+    }
+    const msgRef = db.ref('chat/' + targetId + '/messages').push();
+    msgRef.set(msgData);
+    if (currentUser.role === 'admin') {
+        try {
+            const names = JSON.parse(localStorage.getItem('tpay_recipients') || '{}');
+            names['_last_' + currentChatUser] = text;
+            localStorage.setItem('tpay_recipients', JSON.stringify(names));
+        } catch(e) {}
+    }
+};
+chatSendBtn.onclick = sendChatMessage;
+
+// ====== ПОИСК ПО ЧАТУ ======
+(function addChatSearch() {
+    const header = document.querySelector('#chatPage .top-nav');
+    if (!header || document.getElementById('chatSearchInput')) return;
+    const searchDiv = document.createElement('div');
+    searchDiv.style.cssText = 'display:none;padding:8px 16px;';
+    searchDiv.innerHTML = '<input id="chatSearchInput" type="text" placeholder="Поиск сообщений..." style="width:100%;padding:10px 14px;border:2px solid #eef0f2;border-radius:12px;font-size:14px;outline:none;font-family:inherit;box-sizing:border-box;">';
+    header.after(searchDiv);
+    // Кнопка поиска в шапке чата
+    const searchBtn = document.createElement('button');
+    searchBtn.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#3b7cf6" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>';
+    searchBtn.style.cssText = 'background:none;border:none;padding:8px;cursor:pointer;display:flex;';
+    header.appendChild(searchBtn);
+    searchBtn.onclick = () => {
+        const el = document.getElementById('chatSearchInput');
+        if (el) el.style.display = el.style.display === 'none' ? 'block' : 'none';
+    };
+    document.getElementById('chatSearchInput').addEventListener('input', function() {
+        const q = this.value.trim().toLowerCase();
+        document.querySelectorAll('#chatMessages .chat-message').forEach(el => {
+            const text = el.textContent.toLowerCase();
+            el.style.display = !q || text.includes(q) ? 'flex' : 'none';
+        });
+    });
+})();
+
+// ====== ПУШ ОБ ОПЛАТЕ ======
+function notifyPayment(amount, title) {
+    if (Notification.permission !== 'granted') return;
+    try {
+        new Notification('Т-Банк: оплата', {
+            body: 'Списано ' + amount + ' ₽ — ' + (title || 'Оплата проезда'),
+            icon: 'assets/ico/tbank.png'
+        });
+    } catch(e) {}
+}
+// Модифицируем savePayment для пуша
+const origSavePayment = savePayment;
+savePayment = function() {
+    origSavePayment();
+    if (currentUser && currentUser.role !== 'admin') {
+        const lastPay = payments[0];
+        if (lastPay) notifyPayment(lastPay.price, lastPay.title);
+    }
+};
+
+// ====== ЛОГИ ВХОДА ======
+function logLogin(username, success) {
+    if (firebaseFailed || typeof db === 'undefined') return;
+    try {
+        const fp = getDeviceFingerprint();
+        db.ref('loginLogs').push({
+            username: username,
+            success: success,
+            time: Date.now(),
+            fingerprint: fp,
+            ip: localStorage.getItem('tpay_ip_' + username) || '',
+            userAgent: navigator.userAgent.substring(0, 200)
+        });
+    } catch(e) {}
+}
+
+// ====== РАССЫЛКА АДМИНА ======
+document.getElementById('adminBroadcastBtn').onclick = () => {
+    const text = prompt('Текст для рассылки всем пользователям:');
+    if (!text || !text.trim()) return;
+    if (!confirm('Отправить "' + text.substring(0, 50) + '..." всем пользователям?')) return;
+    db.ref('broadcast').push({
+        text: text.trim(),
+        from: currentUser ? currentUser.username : 'admin',
+        time: Date.now()
+    });
+    // Также отправляем в чат каждому пользователю
+    db.ref('users').once('value', snap => {
+        const data = snap.val();
+        if (!data) return;
+        Object.keys(data).forEach(uid => {
+            if (data[uid].role !== 'user') return;
+            db.ref('chat/' + uid + '/messages').push({
+                from: 'admin',
+                text: '📢 ' + text.trim(),
+                time: Date.now(),
+                read: false
+            });
+        });
+        alert('Рассылка отправлена');
+    });
+};
+
+// ====== АНИМАЦИИ ПЕРЕХОДОВ ======
+// (заглушка — CSS transition не работает с display:none, требуется более сложная логика)
+
+// ====== ОФЛАЙН-РЕЖИМ (СОХРАНЕНИЕ ПОСЛЕДНИХ ДАННЫХ) ======
+function saveOfflineData() {
+    try {
+        localStorage.setItem('tpay_offline_users', JSON.stringify(users));
+        if (currentUser) localStorage.setItem('tpay_offline_current', JSON.stringify(currentUser));
+    } catch(e) {}
+}
+setInterval(saveOfflineData, 60000); // Каждую минуту
+window.addEventListener('beforeunload', saveOfflineData);
+
+// ====== ТИПИНГ ИНДИКАТОР В АДМИНСКОМ ЧАТЕ ======
+// Добавляем индикатор в HTML чата
+(function addTypingUI() {
+    if (document.getElementById('typingIndicator')) return;
+    const el = document.createElement('div');
+    el.id = 'typingIndicator';
+    el.style.cssText = 'display:none;padding:4px 16px;font-size:11px;color:#8c8f94;font-style:italic;';
+    chatMessages.parentNode.insertBefore(el, chatMessages.nextSibling);
+})();
+
+// ====== ДОПОЛНИТЕЛЬНЫЕ СВОЙСТВА ДЛЯ ВИРТУАЛИЗАЦИИ ======
+// Ленивая загрузка: подгружаем сообщения по скроллу
+let chatLoadCount = 0;
+const origAppendMessage = appendMessage;
+appendMessage = function(msg, userId) {
+    chatLoadCount++;
+    if (chatLoadCount > 200) {
+        // Скрываем старые сообщения (оставляем последние 200)
+        const all = chatMessages.querySelectorAll('.chat-message');
+        if (all.length > 200) {
+            for (let i = 0; i < all.length - 200; i++) {
+                if (all[i].style.display !== 'none') all[i].style.display = 'none';
+            }
+        }
+    }
+    origAppendMessage(msg, userId);
+};
+
+// ====== СТАТУС СОЕДИНЕНИЯ С FIREBASE ======
+let firebaseConnected = false;
+if (typeof db !== 'undefined') {
+    db.ref('.info/connected').on('value', snap => {
+        firebaseConnected = snap.val();
+        const el = document.getElementById('networkStatus');
+        if (el) {
+            if (!firebaseConnected) {
+                el.style.display = 'flex';
+                el.style.background = '#e62e2e';
+                el.textContent = 'Нет соединения с сервером';
+            } else {
+                const was = localStorage.getItem('tpay_fb_was_offline');
+                if (was) {
+                    el.style.display = 'flex';
+                    el.style.background = '#34c759';
+                    el.textContent = 'Соединение восстановлено';
+                    setTimeout(() => el.style.display = 'none', 3000);
+                }
+                localStorage.removeItem('tpay_fb_was_offline');
+            }
+        }
+        if (!firebaseConnected) localStorage.setItem('tpay_fb_was_offline', '1');
+    });
+}
+
+// ====== ПРОСЛУШКА РАССЫЛКИ ======
+if (typeof db !== 'undefined') {
+    db.ref('broadcast').on('child_added', snap => {
+        const data = snap.val();
+        if (!data || !currentUser || currentUser.role === 'admin') return;
+        if (!data.time || Date.now() - data.time > 86400000) return; // только за последние 24ч
+        const shown = localStorage.getItem('tpay_broadcast_seen_' + snap.key);
+        if (shown) return;
+        localStorage.setItem('tpay_broadcast_seen_' + snap.key, '1');
+        // Показываем как уведомление
+        const notif = document.createElement('div');
+        notif.style.cssText = 'position:fixed;bottom:80px;left:16px;right:16px;background:#1c1c1e;color:#fff;padding:14px 18px;border-radius:14px;z-index:9999;box-shadow:0 8px 32px rgba(0,0,0,0.3);animation:slideUp 0.3s ease;max-width:400px;margin:0 auto;';
+        notif.innerHTML = '<div style="font-size:12px;color:#8c8f94;margin-bottom:4px;">📢 Сообщение от администратора</div><div style="font-size:14px;line-height:1.4;">' + data.text + '</div><button id="dismissBroadcast" style="margin-top:10px;background:#3b7cf6;color:white;border:none;padding:6px 18px;border-radius:20px;font-size:13px;cursor:pointer;font-family:inherit;">OK</button>';
+        document.body.appendChild(notif);
+        document.getElementById('dismissBroadcast').onclick = () => notif.remove();
+        setTimeout(() => { try { notif.remove(); } catch(e) {} }, 10000);
+    });
+}
+
+// ====== РАЗРЕШЕНИЕ НА УВЕДОМЛЕНИЯ ПРИ ПЕРВОМ ВХОДЕ ======
+// Проверяем при первом входе пользователя
+const origSplashAndMain = showSplashAndMain;
+showSplashAndMain = async function() {
+    if (currentUser && currentUser.role !== 'admin') {
+        if (typeof Notification !== 'undefined' && Notification.permission === 'default') {
+            try { await Notification.requestPermission(); } catch(e) {}
+        }
+    }
+    await origSplashAndMain();
+};
 document.getElementById('cardDetailBtn').onclick = async () => {
     if (isNavigating) return;
     isNavigating = true;
