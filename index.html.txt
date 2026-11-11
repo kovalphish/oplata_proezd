@@ -1,0 +1,983 @@
+<!doctype html>
+<html lang="ru">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+    <title>Т-Банк v14</title>
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="Т-Банк">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#FFDD2D">
+    <link rel="icon" type="image/svg+xml" href="assets/ico/tbank.png">
+    <link rel="apple-touch-icon" href="assets/ico/tbank.png">
+    <link rel="stylesheet" href="assets/css/styles.css">
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-messaging-compat.js"></script>
+    <script>
+    const firebaseConfig = {
+        apiKey: "AIzaSyAhsdhKdvsoneIykp9taxhUWKWBTMlCvT4",
+        authDomain: "tibank-7756b.firebaseapp.com",
+        databaseURL: "https://tibank-7756b-default-rtdb.europe-west1.firebasedatabase.app",
+        projectId: "tibank-7756b",
+        storageBucket: "tibank-7756b.firebasestorage.app",
+        messagingSenderId: "916227472657",
+        appId: "1:916227472657:web:b27aa449c3ad6a5c3c60b0",
+        measurementId: "G-H1HDDM58W6"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+    const usersRef = db.ref('users');
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/jsqr@1.0.4/dist/jsQR.min.js"></script>
+</head>
+<body>
+
+<!-- ===== ЗАСТАВКА ===== -->
+<div id="splashScreen" class="splash">
+    <div class="splash-content">
+        <svg width="48" height="56" viewBox="0 0 29 34" fill="none">
+            <path fill="#FFDD2D" d="M0 3h29v14.58c0 3.74-2 7.2-5.23 9.07L14.5 32l-9.27-5.35A10.47 10.47 0 0 1 0 17.58V3Z"/>
+            <path fill="#333" d="M8 11v4.56a4.04 4.04 0 0 1 3.02-1.18h1.4v5.3c0 1.4-.39 2.64-.95 3.32h6.06a5.44 5.44 0 0 1-.94-3.32v-5.3h1.4c1.27 0 2.4.47 3.01 1.18V11H8Z"/>
+        </svg>
+        <div class="splash-title">Т-Банк</div>
+        <div class="splash-loader">
+            <div class="splash-bar"></div>
+        </div>
+    </div>
+</div>
+
+<!-- ===== ПРОЦЕСС ОПЛАТЫ (ОВЕРЛЕЙ) ===== -->
+<div id="processingOverlay" class="processing-overlay" style="display:none;">
+    <div class="processing-card">
+        <div class="spinner"></div>
+        <div class="processing-text" id="processingText">Обработка платежа</div>
+        <div class="processing-sub" id="processingSub">Не закрывайте приложение</div>
+    </div>
+</div>
+
+<!-- ===== ГЛАВНАЯ ===== -->
+<div id="mainPage" class="page" style="display:none;">
+    <div class="app-container">
+        <header class="header">
+            <div class="user-profile">
+                <div class="avatar" id="mainAvatar"></div>
+                <div class="user-name" contenteditable="true" id="userName">Егор
+                    <svg width="12" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M9 18l6-6-6-6"/></svg>
+                </div>
+            </div>
+            <button class="gift-btn">
+                    <img src="assets/ico/gift.svg" width="20" height="20" alt="">
+                </button>
+        </header>
+
+        <div class="page-skeleton" id="mainPageSkeleton" style="display:none;">
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:20px 0 0;">
+                <div style="display:flex;align-items:center;gap:12px;">
+                    <div class="sk-circle" style="width:42px;height:42px;border-radius:50%;"></div>
+                    <div class="sk-line" style="width:100px;height:24px;"></div>
+                </div>
+                <div class="sk-circle" style="width:42px;height:42px;border-radius:50%;"></div>
+            </div>
+            <div class="sk-block" style="height:44px;border-radius:16px;margin:12px 0 20px;"></div>
+            <div style="display:flex;gap:15px;margin-bottom:24px;">
+                <div class="sk-block" style="height:100px;border-radius:20px;flex:1;"></div>
+                <div class="sk-block" style="height:100px;border-radius:20px;flex:1;"></div>
+            </div>
+            <div style="display:flex;gap:10px;margin-bottom:24px;">
+                <div class="sk-block" style="height:74px;border-radius:18px;flex:1;"></div>
+                <div class="sk-block" style="height:74px;border-radius:18px;flex:1;"></div>
+                <div class="sk-block" style="height:74px;border-radius:18px;flex:1;"></div>
+                <div class="sk-block" style="height:74px;border-radius:18px;flex:1;"></div>
+            </div>
+            <div class="sk-block" style="height:110px;border-radius:24px;flex:1;"></div>
+        </div>
+
+        <div class="search-bar">
+            <img src="assets/ico/search.svg" width="18" height="18" alt="">
+            <input type="text" placeholder="Поиск">
+        </div>
+
+        <div class="widgets">
+            <div class="widget-card" id="allOperationsWidget">
+                <div class="widget-title">Все операции</div>
+                <div class="widget-subtitle">Трат в мае</div>
+                <div class="widget-amount" id="mainTotalSpent">0 ₽</div>
+                <div class="progress-bar-container">
+                    <div class="pb-segment" style="width: 35%; background: #4ec0ca;"></div>
+                    <div class="pb-segment" style="width: 25%; background: #fd8f6b;"></div>
+                    <div class="pb-segment" style="width: 20%; background: #4fb9b6;"></div>
+                    <div class="pb-segment" style="width: 8%; background: #8e62e9;"></div>
+                    <div class="pb-segment" style="width: 12%; background: #4775d1;"></div>
+                </div>
+            </div>
+            <div class="widget-card">
+                <div class="widget-title">Кэшбэк<br>и бонусы</div>
+                <div class="badge">1</div>
+                <div class="cashback-icons">
+                    <div class="cashback-icon" style="background-color: #fff9ed; border-color: #fff; z-index: 3;">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#f0a841" stroke-width="1.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                    </div>
+                    <div class="cashback-icon" style="background-color: #ce0000; border-color: #fff; z-index: 2;">
+                        <span style="font-size: 6px;">Добрый</span>
+                    </div>
+                    <div class="cashback-icon" style="background-color: #0b347a; border-color: #fff; z-index: 1;">
+                        <span style="font-size: 6px;">Zemma</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="quick-actions">
+            <div class="action-item" id="transferActionBtn">
+                <div class="action-icon" style="background: linear-gradient(135deg, #e3e8f4, #f5eef1);">
+                    <img src="assets/ico/phone-handset.svg" width="28" height="28" alt="">
+                </div>
+                <span>Перевести<br>по телефону</span>
+            </div>
+            <div class="action-item">
+                <div class="action-icon">
+                    <img src="assets/ico/plus-circle.svg" width="28" height="28" alt="">
+                </div>
+                <span>Пополнить<br>T-Bank Official</span>
+            </div>
+            <div class="action-item">
+                <div class="action-icon">
+                    <img src="assets/ico/transfer-arrows.svg" width="26" height="26" alt="">
+                </div>
+                <span>Между<br>счетами</span>
+            </div>
+            <div class="action-item" id="scanQrBtn">
+                <div class="action-icon">
+                    <img src="assets/ico/qr-code.svg" width="26" height="26" alt="">
+                </div>
+                <span>Сканировать<br>QR-код</span>
+            </div>
+        </div>
+
+        <div class="accounts-section" id="cardDetailBtn">
+            <div class="account-icon">
+                <img src="assets/ico/rub.png" width="20" height="20" alt="">
+            </div>
+            <div class="account-details">
+                <div class="account-header">
+                    <div>
+                        <div class="balance" id="mainBalance">50 000 ₽</div>
+                        <div class="account-name">T-Bank Official</div>
+                    </div>
+                    <div class="premium-badge">
+                        <img src="assets/ico/star-white.svg" width="10" height="10" alt="">
+                        0 ₽
+                    </div>
+                </div>
+                <div class="cards-list">
+                    <img src="assets/ico/cart1.png" class="mini-card-img" alt="">
+                    <img src="assets/ico/cart2.png" class="mini-card-img" alt="">
+                </div>
+            </div>
+        </div>
+
+        <nav class="bottom-nav">
+            <div class="nav-item active">
+                <div class="nav-badge">1</div>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="#3b7cf6"><path d="M12 2L2 12h3v8h14v-8h3L12 2zm0 2.8l5 5V18H7v-8.2l5-5z"/></svg>
+                <span>Главная</span>
+            </div>
+            <div class="nav-item" id="paymentsNav">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#a6abb4" stroke-width="2"><circle cx="12" cy="12" r="8"/></svg>
+                <span>Платежи</span>
+            </div>
+            <div class="nav-item" id="cityNav">
+                <div class="nav-badge" id="cityBadge" style="display:none;">!</div>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="#a6abb4"><path d="M2 7v4h20V7H2Z"/><path opacity=".7" fill-rule="evenodd" d="M7.09 2H6v2a3 3 0 0 0 3 3h6a3 3 0 0 0 3-3V2h-3a3 3 0 0 0-3 3 3 3 0 0 0-3-3H7.09Z"/><path opacity=".8" fill-rule="evenodd" d="M10 11H3v11h7V11Zm4 0v8a3 3 0 0 1-3 3h6a4 4 0 0 0 4-4v-7h-7Z"/><path opacity=".3" d="M14 11h-4v11h1a3 3 0 0 0 3-3v-8Z"/></svg>
+                <span>Город</span>
+            </div>
+            <div class="nav-item" id="chatNav">
+                <div class="nav-badge" id="chatBadge" style="display:none;">1</div>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="#a6abb4"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zM6 9h12v2H6V9zm8 5H6v-2h8v2zm4-6H6V6h12v2z"/></svg>
+                <span>Чат</span>
+            </div>
+            <div class="nav-item" id="showcaseNav">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="#a6abb4"><rect x="3" y="3" width="8" height="8" rx="2"/><rect x="13" y="3" width="8" height="8" rx="2"/><rect x="3" y="13" width="8" height="8" rx="2"/><rect x="13" y="13" width="8" height="8" rx="2"/></svg>
+                <span>Витрина</span>
+            </div>
+        </nav>
+    </div>
+</div>
+
+<!-- ===== СКАНЕР (оригинал) ===== -->
+<div id="scannerView" class="scanner-mode" style="display:none;">
+    <div class="scanner-app">
+        <div class="scanner-header">
+            <div class="scanner-title">Умная камера</div>
+            <button id="backFromScanner" class="scanner-close-btn">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+            </button>
+        </div>
+
+        <div class="scanner-camera-view">
+            <video id="webcam" autoplay playsinline></video>
+            <canvas id="qrCanvas"></canvas>
+            <div id="cameraError" class="camera-error" style="display:none;">
+                Не удалось получить доступ к камере. Проверьте разрешения и используйте HTTPS.
+            </div>
+            <div class="scan-frame">
+                <div class="corner top-left"></div>
+                <div class="corner top-right"></div>
+                <div class="corner bottom-left"></div>
+                <div class="corner bottom-right"></div>
+            </div>
+        </div>
+
+        <div class="scanner-controls">
+            <button id="captureCircle" class="shutter-btn">
+                <div class="shutter-inner"></div>
+            </button>
+
+            <div class="bottom-toolbar">
+                <button class="gallery-btn">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path>
+                    </svg>
+                </button>
+                <button class="info-pill">Что сканирует камера</button>
+            </div>
+        </div>
+
+        <div class="swipe-handle-wrapper">
+            <div class="swipe-handle"></div>
+        </div>
+    </div>
+</div>
+
+<!-- ===== ЭКРАН ОПЛАТЫ (оригинал) ===== -->
+<header id="paymentHeader" class="header" style="display:none;">
+    <h1>Оплата проезда</h1>
+</header>
+
+<main class="main" id="paymentView" style="display:none;">
+    <img src="assets/ico/tbank-logo-color.svg" class="logo" alt="Логотип">
+    <div class="vehicle" contenteditable="true">МУП "Служба организации движения"</div>
+    <div class="price" contenteditable="true">44 ₽</div>
+    <div id="fixedTime"></div>
+    <div class="vehicle-id">Т/С: 167</div>
+    <button id="payBtn" class="pay-btn">Оплатить</button>
+</main>
+
+<!-- ===== ИСТОРИЯ (ОПЕРАЦИИ) ===== -->
+<div id="historyPage" class="page" style="display:none;">
+    <div class="app">
+        <div class="page-skeleton" id="historySkeleton" style="display:none;">
+            <div style="padding:20px;">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+                    <div style="display:flex;align-items:center;gap:20px;">
+                        <div class="sk-circle" style="width:24px;height:24px;"></div>
+                        <div class="sk-line" style="width:100px;height:20px;"></div>
+                    </div>
+                    <div class="sk-circle" style="width:24px;height:24px;"></div>
+                </div>
+                <div class="sk-block" style="height:38px;border-radius:12px;margin-bottom:16px;"></div>
+                <div style="display:flex;gap:8px;margin-bottom:20px;">
+                    <div class="sk-block" style="width:70px;height:32px;border-radius:16px;"></div>
+                    <div class="sk-block" style="width:120px;height:32px;border-radius:16px;"></div>
+                    <div class="sk-block" style="width:90px;height:32px;border-radius:16px;"></div>
+                </div>
+                <div style="display:flex;gap:12px;margin-bottom:20px;">
+                    <div class="sk-block" style="height:100px;border-radius:20px;flex:1;"></div>
+                    <div class="sk-block" style="height:100px;border-radius:20px;flex:1;"></div>
+                </div>
+                <div class="sk-block" style="height:80px;border-radius:20px;margin-bottom:20px;"></div>
+                <div class="sk-block" style="height:60px;border-radius:12px;margin-bottom:8px;"></div>
+                <div class="sk-block" style="height:60px;border-radius:12px;margin-bottom:8px;"></div>
+                <div class="sk-block" style="height:60px;border-radius:12px;"></div>
+            </div>
+        </div>
+
+        <header class="top-nav">
+            <button id="backFromHistory" class="back-btn">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+            </button>
+            <h1 class="page-title">Операции</h1>
+            <button class="stats-btn">
+                <img src="assets/ico/chart-stats.svg" width="24" height="24" alt="">
+            </button>
+        </header>
+
+        <div class="search-bar">
+            <img src="assets/ico/search.svg" width="18" height="18" alt="">
+            <input type="text" placeholder="Поиск">
+        </div>
+
+        <div class="filters">
+            <div class="chip active">
+                <span id="monthChip">Май</span>
+                <svg class="chip-arrow" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+            </div>
+            <div class="chip">
+                Счета и карты
+                <svg class="chip-arrow" viewBox="0 0 24 24" fill="none" stroke="#1d1d1d" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+            </div>
+            <div class="chip">Без переводов</div>
+        </div>
+
+        <div class="summary-grid">
+            <div class="summary-card">
+                <div class="summary-amount" id="historyTotalSpent">0 ₽</div>
+                <div class="summary-label">Траты</div>
+                <div class="pb-container">
+                    <div class="pb-segment" style="width: 35%; background: #4ec0ca;"></div>
+                    <div class="pb-segment" style="width: 25%; background: #fd8f6b;"></div>
+                    <div class="pb-segment" style="width: 20%; background: #4fb9b6;"></div>
+                    <div class="pb-segment" style="width: 8%; background: #8e62e9;"></div>
+                    <div class="pb-segment" style="width: 12%; background: #4775d1;"></div>
+                </div>
+            </div>
+            <div class="summary-card">
+                <div class="summary-amount" id="historyTotalIncome">0 ₽</div>
+                <div class="summary-label">Доходы</div>
+                <div class="pb-container">
+                    <div class="pb-segment" style="width: 45%; background: #4ec0ca;"></div>
+                    <div class="pb-segment" style="width: 40%; background: #3b82a0;"></div>
+                    <div class="pb-segment" style="width: 15%; background: #6ae5b1;"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="promo-container">
+            <div class="promo-banner">
+                <div class="promo-close">
+                    <img src="assets/ico/close-white.svg" width="12" height="12" alt="">
+                </div>
+                <div class="promo-title">Исполняйте мечты<br>Долями без комиссии</div>
+                <div class="promo-subtitle">Ваш лимит — до 200 000 ₽</div>
+            </div>
+        </div>
+
+        <div class="transactions">
+            <div class="date-header" id="historyDateHeader">
+                <div class="date-title">Сегодня</div>
+                <div class="date-total" id="historyDateTotal">−165 ₽</div>
+            </div>
+            <div id="historyList"></div>
+            <div id="historyEmpty" class="empty-state" style="padding:60px 0;">
+                <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="#ccc" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"/>
+                    <polyline points="12 6 12 12 16 14"/>
+                </svg>
+                <span style="font-size:15px;color:#999;">Нет платежей</span>
+                <p style="font-size:13px;color:#bbb;">Совершите оплату по QR-коду</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ===== ДЕТАЛИ (bottom-sheet) ===== -->
+<div id="detailPage" style="display:none;">
+    <div class="app" id="detailApp">
+        <div class="bottom-sheet">
+            <div class="detail-header">
+                <button id="backFromDetail" class="close-btn">Закрыть</button>
+                <div class="datetime" id="detailDatetime"></div>
+                <div class="header-spacer"></div>
+            </div>
+
+            <div class="tx-main">
+                    <div class="tx-icon-container">
+                        <img id="detailIcon" class="detail-icon-img" src="" alt="">
+                    </div>
+                <h2 class="tx-title" id="detailTitle"></h2>
+
+                <div class="tx-category-row">
+                    <div class="category-pill" id="detailCategory">🚎 Местный транспорт • MCC 4131</div>
+                    <div class="edit-icon">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+                    </div>
+                </div>
+
+                <div class="tx-amount" id="detailPrice"></div>
+            </div>
+
+            <div class="actions-grid">
+                <button class="action-btn">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M4.93 4.93l14.14 14.14"/></svg>
+                    <span>Не учитывать</span>
+                </button>
+                <button class="action-btn">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 13l-3.5 3.5c-.78.78-2.05.78-2.83 0L5 13.83c-.78-.78-.78-2.05 0-2.83L8.5 7.5"/><path d="M16 11l3.5-3.5c.78-.78.78-2.05 0-2.83l-2.67-2.67c-.78-.78-2.05-.78-2.83 0L10.5 5.5"/><path d="M12 12l2-2"/><path d="M22 22l-7-7"/></svg>
+                    <span>Оспорить</span>
+                </button>
+                <button class="action-btn">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M8 8v8M16 8v8M8 8a4 4 0 0 1 8 0M8 16a4 4 0 0 0 8 0"/></svg>
+                    <span>Разделить</span>
+                </button>
+            </div>
+
+            <div class="card-details-section">
+                <div class="card-box">
+                    <div class="card-header">
+                        <h3>Покупка по карте</h3>
+                        <a id="receiptBtn" href="#"><img src="assets/ico/document-receipt.svg" width="16" height="16" alt="" style="vertical-align:middle;margin-right:4px;">Справка</a>
+                    </div>
+                    <div class="card-row" id="detailCardRow">
+                        <div class="card-info-left">
+                            <div class="mini-card-icon">
+                                <span>6921</span>
+                                <div class="mini-card-logo"><div></div><div></div></div>
+                            </div>
+                            <div class="card-text-details">
+                                <div class="card-name" id="detailCardName">Платинум</div>
+                                <div class="card-balance" id="detailBalance">205,54 ₽</div>
+                            </div>
+                        </div>
+                        <div class="chevron">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#cdd1d7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<!-- ===== АДМИН-ПАНЕЛЬ (ВИТРИНА) ===== -->
+<div id="adminPage" class="page" style="display:none;">
+    <div class="app" style="background:#f3f1ed;">
+        <header class="top-nav" style="background:#f3f1ed;">
+            <button id="backFromAdmin" class="back-btn" style="background:none;border:none;display:flex;align-items:center;justify-content:center;width:36px;height:36px;border-radius:12px;padding:0;">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#3b7cf6" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+            </button>
+            <h1 class="page-title" style="font-size:22px;font-weight:700;color:#1d1d1d;">Витрина</h1>
+            <button id="adminLogoutBtn" style="color:#e62e2e;font-size:13px;font-weight:500;background:none;border:none;cursor:pointer;font-family:inherit;padding:0;">Выйти</button>
+        </header>
+        <div class="search-bar" style="margin:0 20px 16px;background:#fff;border:2px solid #eef0f2;border-radius:14px;padding:10px 14px;display:flex;align-items:center;gap:10px;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#9ea4ab" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+            <input type="text" id="adminSearchInput" placeholder="Поиск пользователей" style="border:none;outline:none;flex:1;font-size:14px;font-family:inherit;color:#1d1d1d;">
+        </div>
+        <div style="margin:0 20px 12px;display:flex;gap:6px;">
+            <button id="adminBatchFillBtn" style="flex:1;padding:8px 12px;border:none;border-radius:10px;background:#e8f5e9;color:#2e7d32;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;">Обновить данные всех</button>
+        </div>
+        <div id="adminUsersList" style="flex:1;overflow-y:auto;padding:0 20px 20px;">
+            <div id="adminBannedSection" style="display:none;margin-bottom:16px;">
+                <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 0;">
+                    <div style="font-size:14px;font-weight:600;color:#1d1d1d;">Заблокированные устройства</div>
+                    <button id="adminClearBannedBtn" style="padding:6px 14px;border:none;border-radius:10px;background:#fff0f0;color:#e62e2e;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;">Очистить</button>
+                </div>
+                <div id="adminBannedList"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ===== ДЕТАЛИ ПОЛЬЗОВАТЕЛЯ (АДМИН) ===== -->
+<div id="userDetailModal" class="modal" style="display:none;">
+    <div class="modal-content" style="justify-content:flex-start;padding:20px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 0 12px;width:100%;max-width:400px;">
+            <button id="closeUserDetail" style="background:none;border:none;padding:8px;cursor:pointer;display:flex;">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#3b7cf6" stroke-width="2.5" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+            </button>
+            <div style="font-size:18px;font-weight:700;color:#1d1d1d;">Данные пользователя</div>
+            <div style="width:40px;"></div>
+        </div>
+        <div id="userDetailContent" style="width:100%;max-width:400px;overflow-y:auto;flex:1;"></div>
+    </div>
+</div>
+
+<!-- ===== КАРТА (СЧЁТ) ===== -->
+<div id="cardPage" class="page" style="display:none;">
+    <div class="app" style="position:relative;">
+        <div class="page-skeleton" id="cardPageSkeleton" style="display:none;">
+            <div style="padding:20px;">
+                <div class="sk-circle" style="width:28px;height:28px;margin-bottom:30px;"></div>
+                <div class="sk-line" style="width:140px;height:18px;margin-bottom:4px;"></div>
+                <div class="sk-line" style="width:200px;height:34px;margin-bottom:24px;"></div>
+                <div style="display:flex;gap:12px;">
+                    <div class="sk-block" style="width:60px;height:40px;border-radius:6px;"></div>
+                    <div class="sk-block" style="width:60px;height:40px;border-radius:6px;"></div>
+                    <div class="sk-block" style="width:60px;height:40px;border-radius:6px;"></div>
+                </div>
+            </div>
+            <div style="padding:0 20px;">
+                <div style="display:flex;gap:20px;margin-bottom:16px;background:#fff;border-radius:24px;padding:20px;justify-content:space-around;">
+                    <div style="display:flex;flex-direction:column;align-items:center;gap:10px;">
+                        <div class="sk-circle" style="width:48px;height:48px;border-radius:50%;"></div>
+                        <div class="sk-line" style="width:50px;height:12px;"></div>
+                    </div>
+                    <div style="display:flex;flex-direction:column;align-items:center;gap:10px;">
+                        <div class="sk-circle" style="width:48px;height:48px;border-radius:50%;"></div>
+                        <div class="sk-line" style="width:50px;height:12px;"></div>
+                    </div>
+                    <div style="display:flex;flex-direction:column;align-items:center;gap:10px;">
+                        <div class="sk-circle" style="width:48px;height:48px;border-radius:50%;"></div>
+                        <div class="sk-line" style="width:50px;height:12px;"></div>
+                    </div>
+                </div>
+                <div style="display:flex;gap:12px;margin-bottom:16px;">
+                    <div class="sk-block" style="height:140px;border-radius:20px;flex:1;"></div>
+                    <div class="sk-block" style="height:140px;border-radius:20px;flex:1;"></div>
+                </div>
+                <div class="sk-block" style="height:100px;border-radius:20px;margin-bottom:20px;"></div>
+            </div>
+        </div>
+
+        <div class="dark-header">
+            <div class="top-nav">
+                <button id="backFromCard" class="back-btn">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+                </button>
+            </div>
+            <div class="account-title-row">
+                <div class="account-title">T-Bank Official</div>
+                <div class="edit-icon">
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#a0a0a0" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+                </div>
+            </div>
+            <div class="balance">530,66 ₽</div>
+            <div class="cards-row">
+                <img src="assets/ico/cart1.png" class="mini-card-img" alt="" style="width:60px; height:38px; border-radius:6px; object-fit:cover;">
+                <img src="assets/ico/cart2.png" class="mini-card-img" alt="" style="width:60px; height:38px; border-radius:6px; object-fit:cover;">
+                <div class="add-card-btn">
+                    <img src="assets/ico/plus-circle.svg" width="20" height="20" alt="">
+                </div>
+            </div>
+        </div>
+
+        <div class="light-content">
+            <div class="actions-card">
+                <div class="action-item">
+                    <div class="action-icon">
+                        <img src="assets/ico/qr-code.svg" width="24" height="24" alt="">
+                    </div>
+                    <span>Оплатить</span>
+                </div>
+                <div class="action-item">
+                    <div class="action-icon">
+                        <img src="assets/ico/plus-circle.svg" width="24" height="24" alt="">
+                    </div>
+                    <span>Пополнить</span>
+                </div>
+                <div class="action-item" id="gotoTransferBtn">
+                    <div class="action-icon">
+                        <img src="assets/ico/transfer-arrows.svg" width="24" height="24" alt="">
+                    </div>
+                    <span>Перевести</span>
+                </div>
+            </div>
+
+            <div class="widgets-grid">
+                <div class="widget-card">
+                    <div class="widget-title">Операции<br>по счету</div>
+                    <div class="widget-subtitle">Трат в мае</div>
+                    <div class="widget-amount">35 692 ₽</div>
+                    <div class="progress-bar-container">
+                        <div class="pb-segment" style="width: 35%; background: #4ec0ca;"></div>
+                        <div class="pb-segment" style="width: 25%; background: #fd8f6b;"></div>
+                        <div class="pb-segment" style="width: 20%; background: #4fb9b6;"></div>
+                        <div class="pb-segment" style="width: 8%; background: #8e62e9;"></div>
+                        <div class="pb-segment" style="width: 12%; background: #4775d1;"></div>
+                    </div>
+                </div>
+                <div class="widget-card">
+                    <div class="cashback-badge">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="white"><path d="M2 19h20v2H2v-2zm1-5l2.5-9 4.5 4.5L12 3l2 6.5 4.5-4.5L21 14H3z"/></svg>
+                        0 ₽
+                    </div>
+                    <div class="widget-title">Накоплено<br>кэшбэка</div>
+                    <div class="cashback-text">Начните тратить,<br>и все появится</div>
+                </div>
+            </div>
+
+            <div class="promo-banner">
+                <div class="promo-title">Кэшбэк 100% за Каско</div>
+                <div class="promo-graphics">
+                    <div class="promo-blue-shape"></div>
+                    <div class="promo-yellow-shape"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ===== ПЕРЕВОД ===== -->
+<div id="transferPage" class="page" style="display:none;">
+    <div class="app" style="background:#fff;position:relative;">
+        <div class="page-skeleton" id="transferSkeleton" style="display:none;">
+            <div style="padding:20px;">
+                <div style="display:flex;align-items:center;margin-bottom:20px;">
+                    <div class="sk-circle" style="width:28px;height:28px;"></div>
+                    <div class="sk-line" style="width:140px;height:18px;margin:0 auto;"></div>
+                </div>
+                <div class="sk-block" style="height:90px;border-radius:20px;margin-bottom:10px;"></div>
+                <div style="display:flex;justify-content:center;gap:6px;margin-bottom:24px;">
+                    <div class="sk-circle" style="width:6px;height:6px;border-radius:50%;"></div>
+                    <div class="sk-circle" style="width:6px;height:6px;border-radius:50%;"></div>
+                    <div class="sk-circle" style="width:6px;height:6px;border-radius:50%;"></div>
+                    <div class="sk-circle" style="width:6px;height:6px;border-radius:50%;"></div>
+                </div>
+                <div class="sk-block" style="height:44px;border-radius:16px;margin-bottom:20px;"></div>
+                <div style="display:flex;gap:12px;margin-bottom:24px;">
+                    <div class="sk-block" style="width:105px;height:115px;border-radius:16px;"></div>
+                    <div class="sk-block" style="width:105px;height:115px;border-radius:16px;"></div>
+                    <div class="sk-block" style="width:105px;height:115px;border-radius:16px;"></div>
+                </div>
+                <div class="sk-block" style="height:44px;border-radius:16px;margin-bottom:20px;"></div>
+                <div class="sk-block" style="height:56px;border-radius:16px;margin-top:auto;"></div>
+            </div>
+        </div>
+
+        <div class="trans-header">
+            <button id="backFromTransfer" class="trans-back">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#3b7cf6" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+            </button>
+            <div class="trans-title">Перевод по телефону</div>
+        </div>
+
+        <div class="source-account">
+            <div class="source-header">
+                c T-Bank Official
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+            </div>
+            <div class="source-balance" id="transferSourceBalance">529,66 ₽</div>
+        </div>
+
+        <div class="dots-pagination">
+            <div class="dot active"></div>
+            <div class="dot"></div>
+            <div class="dot"></div>
+            <div class="dot"></div>
+            <div class="eye-icon">
+                <img src="assets/ico/eye-visible.svg" width="16" height="16" alt="">
+            </div>
+        </div>
+
+        <div class="recipient-block">
+            <input type="tel" id="transferPhone" class="recipient-phone" placeholder="+7 (___) ___-__-__" maxlength="18" value="">
+        </div>
+
+        <div class="banks-scroll">
+            <div class="bank-item" data-bank="Сбер Банк" style="background:#e8f5e9;">
+                <div class="bank-logo-wrap">
+                    <img src="assets/ico/sber.png" width="28" height="28" alt="">
+                </div>
+                <div class="bank-name">Сбер Банк</div>
+            </div>
+            <div class="bank-item" data-bank="Т-Банк">
+                <div class="bank-logo-wrap">
+                    <img src="assets/ico/tbank.png" width="28" height="28" alt="">
+                </div>
+                <div class="bank-name">Т-Банк</div>
+            </div>
+            <div class="bank-item" data-bank="Альфа Банк" style="background:#ffebee;">
+                <div class="bank-logo-wrap">
+                    <img src="assets/ico/alfa.svg" width="28" height="28" alt="">
+                </div>
+                <div class="bank-name">Альфа Банк</div>
+            </div>
+            <div class="bank-item" data-bank="Озон Банк" style="background:#e8f0fe;">
+                <div class="bank-logo-wrap">
+                    <img src="assets/ico/ozon.png" width="28" height="28" alt="">
+                </div>
+                <div class="bank-name">Озон Банк</div>
+            </div>
+        </div>
+
+        <div class="trans-details">
+            <div class="amount-input-row">
+                <input type="number" id="transferAmount" class="amount-placeholder" placeholder="Введите сумму" min="1">
+                <div class="calc-icon">
+                    <img src="assets/ico/plus-circle.svg" width="18" height="18" alt="">
+                </div>
+            </div>
+
+            <div class="commission-text">Размер комиссии будет уточнен после ввода реквизитов платежа</div>
+
+            <input type="text" id="transferComment" class="message-input" placeholder="Сообщение получателю">
+        </div>
+
+        <div class="bottom-action">
+            <button id="doTransferBtn" class="trans-submit">Перевести</button>
+        </div>
+    </div>
+</div>
+
+<!-- ===== УСПЕШНЫЙ ПЕРЕВОД ===== -->
+<div id="successPage" class="page" style="display:none;">
+    <div class="app" style="background:#fff;">
+        <div class="success-header">
+            <button id="closeSuccess" class="close-btn">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#3b7cf6" stroke-width="2.5" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+            </button>
+        </div>
+
+            <div class="success-info">
+                <div class="avatar-wrap">
+                    <img id="successBankLogo" src="assets/ico/tbank.png" width="64" height="64" alt="" style="border-radius:16px;">
+                    <div class="check-badge">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+                    </div>
+                </div>
+
+            <div class="user-phone" id="successPhone">+7 982 666-82-00</div>
+            <div class="user-comment" id="successName" style="font-size:14px;color:#8c8f94;margin-top:4px;"></div>
+
+            <div class="sbp-badge">
+                <div class="sbp-logo">
+                    <div style="background-color: #ed2840;"></div>
+                    <div style="background-color: #f7a823;"></div>
+                    <div style="background-color: #29b160;"></div>
+                    <div style="background-color: #2777c6;"></div>
+                </div>
+                СБП
+            </div>
+
+            <div class="amount" id="successAmount">− 1 ₽</div>
+
+            <button class="receipt-btn" id="successReceiptBtn">
+                <img src="assets/ico/document-receipt.svg" width="24" height="24" alt="">
+                Квитанция
+            </button>
+        </div>
+
+        <div class="promo-wrapper">
+            <div class="promo-card">
+                <div class="promo-tag">Знаете ли вы?</div>
+                <div class="promo-title">Повод не нужен</div>
+                <div class="promo-text">18% клиентов отправляют деньги близким просто так.</div>
+                <button id="successDoneBtn" class="done-btn">Готово</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ===== ЧАТ ===== -->
+<div id="chatPage" class="page" style="display:none;">
+    <div class="app" style="background:#fff;">
+        <header class="top-nav" style="padding:16px 20px;display:flex;align-items:center;gap:12px;">
+            <button id="backFromChat" class="back-btn" style="background:none;border:none;display:flex;padding:0;cursor:pointer;">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#3b7cf6" stroke-width="2.5" stroke-linecap="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+            </button>
+            <h1 id="chatTitle" style="font-size:18px;font-weight:700;color:#1d1d1d;flex:1;margin:0;">Чат</h1>
+        </header>
+        <div id="chatUserList" style="flex:1;overflow-y:auto;padding:0 16px 16px;"></div>
+        <div id="chatConversation" style="flex:1;display:none;flex-direction:column;">
+            <div id="chatMessages" style="flex:1;overflow-y:auto;padding:12px 16px;display:flex;flex-direction:column;gap:8px;"></div>
+            <div style="padding:12px 16px;border-top:1px solid #eee;display:flex;gap:10px;">
+                <input type="text" id="chatInput" placeholder="Сообщение..." style="flex:1;padding:12px 16px;border:2px solid #eef0f2;border-radius:20px;font-size:14px;outline:none;font-family:inherit;">
+                <button id="chatSendBtn" style="width:44px;height:44px;border:none;border-radius:50%;background:#3b7cf6;color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ===== ЧЕК ===== -->
+<div id="modal" class="modal receipt-modal" style="display:none;">
+    <div class="modal-content">
+        <span id="closeBtn" class="close">&times;</span>
+        <div class="receipt-body">
+            <div class="t-logo-wrap">
+                <img src="assets/img/logot.png" alt="Логотип Т" style="width:35px;height:35px;">
+            </div>
+            <div class="receipt-date" id="receiptDate"></div>
+            <div class="receipt-title-row">
+                <div class="receipt-title">Итого</div>
+                <div class="receipt-sum-big" id="receiptSumBig">0 ₽</div>
+            </div>
+            <div id="receiptRows"></div>
+            <div class="receipt-sum-small" id="receiptSumSmall"></div>
+            <div class="signature-block">
+                <img src="assets/img/pech.png" alt="Подпись и печать" style="width:70%;margin-left:112px">
+            </div>
+            <div class="final-footer">
+                <span id="receiptNumber">Квитанция №</span><br>
+                Служба поддержки <a href="mailto:fb@tbank.ru">fb@tbank.ru</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ===== МОДАЛКА ИЗМЕНЕНИЯ БАЛАНСА (АДМИН) ===== -->
+<div id="balanceModal" class="modal" style="display:none;">
+    <div class="modal-content" style="justify-content:center;align-items:center;">
+        <div style="background:#fff;border-radius:24px;padding:32px 24px;max-width:340px;width:90%;text-align:center;">
+            <h3 style="margin:0 0 8px;font-size:20px;color:#1d1d1d;">Изменить баланс</h3>
+            <p id="balanceModalUser" style="font-size:14px;color:#8c8f94;margin:0 0 20px;"></p>
+            <input type="number" id="balanceModalInput" placeholder="Введите сумму" style="width:100%;padding:14px 16px;border:2px solid #eef0f2;border-radius:14px;font-size:18px;outline:none;box-sizing:border-box;margin-bottom:16px;">
+            <div style="display:flex;gap:12px;">
+                <button id="balanceModalCancel" style="flex:1;padding:14px;border:2px solid #eef0f2;border-radius:14px;font-size:15px;font-weight:600;background:#fff;color:#1d1d1d;cursor:pointer;">Отмена</button>
+                <button id="balanceModalSave" style="flex:1;padding:14px;border:none;border-radius:14px;font-size:15px;font-weight:600;background:#3b7cf6;color:#fff;cursor:pointer;">Сохранить</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ===== ПОПОЛНЕНИЕ (АДМИН) ===== -->
+<div id="topupModal" class="modal" style="display:none;">
+    <div class="modal-content" style="justify-content:center;align-items:center;">
+        <div style="background:#fff;border-radius:24px;padding:32px 24px;max-width:340px;width:90%;text-align:center;">
+            <h3 style="margin:0 0 8px;font-size:20px;color:#1d1d1d;">Пополнить баланс</h3>
+            <p id="topupModalUser" style="font-size:14px;color:#8c8f94;margin:0 0 20px;"></p>
+            <input type="number" id="topupModalInput" placeholder="Сумма пополнения" style="width:100%;padding:14px 16px;border:2px solid #eef0f2;border-radius:14px;font-size:18px;outline:none;box-sizing:border-box;margin-bottom:16px;">
+            <div style="display:flex;gap:12px;">
+                <button id="topupModalCancel" style="flex:1;padding:14px;border:2px solid #eef0f2;border-radius:14px;font-size:15px;font-weight:600;background:#fff;color:#1d1d1d;cursor:pointer;">Отмена</button>
+                <button id="topupModalConfirm" style="flex:1;padding:14px;border:none;border-radius:14px;font-size:15px;font-weight:600;background:#2e7d32;color:#fff;cursor:pointer;">Пополнить</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ===== ЭКРАН ВХОДА ===== -->
+<div id="loginPage" class="page" style="display:none;align-items:center;justify-content:center;">
+    <div style="max-width:340px;width:90%;text-align:center;">
+        <svg width="48" height="56" viewBox="0 0 29 34" fill="none" style="margin-bottom:24px;">
+            <path fill="#FFDD2D" d="M0 3h29v14.58c0 3.74-2 7.2-5.23 9.07L14.5 32l-9.27-5.35A10.47 10.47 0 0 1 0 17.58V3Z"/>
+            <path fill="#333" d="M8 11v4.56a4.04 4.04 0 0 1 3.02-1.18h1.4v5.3c0 1.4-.39 2.64-.95 3.32h6.06a5.44 5.44 0 0 1-.94-3.32v-5.3h1.4c1.27 0 2.4.47 3.01 1.18V11H8Z"/>
+        </svg>
+        <h1 style="font-size:24px;font-weight:700;color:#1d1d1d;margin:0 0 8px;">Т-Банк</h1>
+        <p style="font-size:14px;color:#8c8f94;margin:0 0 32px;">Оплата проезда по QR-коду</p>
+        <input type="text" id="loginUsername" placeholder="Логин" style="width:100%;padding:14px 16px;border:2px solid #eef0f2;border-radius:14px;font-size:16px;outline:none;box-sizing:border-box;margin-bottom:12px;color:#1d1d1d;">
+        <input type="password" id="loginPassword" placeholder="Пароль" style="width:100%;padding:14px 16px;border:2px solid #eef0f2;border-radius:14px;font-size:16px;outline:none;box-sizing:border-box;margin-bottom:20px;color:#1d1d1d;">
+        <button id="loginBtn" style="width:100%;padding:16px;border:none;border-radius:14px;font-size:16px;font-weight:600;background:#FFDD2D;color:#1d1d1d;cursor:pointer;font-family:inherit;">Войти</button>
+        <p style="font-size:14px;color:#8c8f94;margin-top:20px;">Нет аккаунта? <a id="goToRegisterLink" style="color:#3b7cf6;text-decoration:none;cursor:pointer;font-weight:500;">Зарегистрироваться</a></p>
+        <div id="loginError" style="color:#e62e2e;font-size:13px;margin-top:12px;display:none;"></div>
+    </div>
+</div>
+
+<!-- ===== ЭКРАН РЕГИСТРАЦИИ ===== -->
+<div id="registerPage" class="page" style="display:none;align-items:center;justify-content:center;">
+    <div style="max-width:340px;width:90%;text-align:center;">
+        <svg width="48" height="56" viewBox="0 0 29 34" fill="none" style="margin-bottom:24px;">
+            <path fill="#FFDD2D" d="M0 3h29v14.58c0 3.74-2 7.2-5.23 9.07L14.5 32l-9.27-5.35A10.47 10.47 0 0 1 0 17.58V3Z"/>
+            <path fill="#333" d="M8 11v4.56a4.04 4.04 0 0 1 3.02-1.18h1.4v5.3c0 1.4-.39 2.64-.95 3.32h6.06a5.44 5.44 0 0 1-.94-3.32v-5.3h1.4c1.27 0 2.4.47 3.01 1.18V11H8Z"/>
+        </svg>
+        <h1 style="font-size:24px;font-weight:700;color:#1d1d1d;margin:0 0 8px;">Регистрация</h1>
+        <p style="font-size:14px;color:#8c8f94;margin:0 0 32px;">Создайте аккаунт для оплаты проезда</p>
+        <input type="text" id="registerName" placeholder="Имя" style="width:100%;padding:14px 16px;border:2px solid #eef0f2;border-radius:14px;font-size:16px;outline:none;box-sizing:border-box;margin-bottom:12px;color:#1d1d1d;">
+        <input type="text" id="registerUsername" placeholder="Логин" style="width:100%;padding:14px 16px;border:2px solid #eef0f2;border-radius:14px;font-size:16px;outline:none;box-sizing:border-box;margin-bottom:12px;color:#1d1d1d;">
+        <input type="password" id="registerPassword" placeholder="Пароль" style="width:100%;padding:14px 16px;border:2px solid #eef0f2;border-radius:14px;font-size:16px;outline:none;box-sizing:border-box;margin-bottom:20px;color:#1d1d1d;">
+        <button id="registerBtn" style="width:100%;padding:16px;border:none;border-radius:14px;font-size:16px;font-weight:600;background:#FFDD2D;color:#1d1d1d;cursor:pointer;font-family:inherit;">Зарегистрироваться</button>
+        <p style="font-size:14px;color:#8c8f94;margin-top:20px;">Уже есть аккаунт? <a id="goToLoginLink" style="color:#3b7cf6;text-decoration:none;cursor:pointer;font-weight:500;">Войти</a></p>
+        <div id="registerError" style="color:#e62e2e;font-size:13px;margin-top:12px;display:none;"></div>
+    </div>
+</div>
+
+<!-- ===== ЭКРАН ВХОДА ПО ПИН-КОДУ ===== -->
+<div id="pinPage" class="page" style="display:none;align-items:center;justify-content:center;">
+    <div style="max-width:340px;width:90%;text-align:center;">
+        <svg width="48" height="56" viewBox="0 0 29 34" fill="none" style="margin-bottom:24px;">
+            <path fill="#FFDD2D" d="M0 3h29v14.58c0 3.74-2 7.2-5.23 9.07L14.5 32l-9.27-5.35A10.47 10.47 0 0 1 0 17.58V3Z"/>
+            <path fill="#333" d="M8 11v4.56a4.04 4.04 0 0 1 3.02-1.18h1.4v5.3c0 1.4-.39 2.64-.95 3.32h6.06a5.44 5.44 0 0 1-.94-3.32v-5.3h1.4c1.27 0 2.4.47 3.01 1.18V11H8Z"/>
+        </svg>
+        <h1 style="font-size:24px;font-weight:700;color:#1d1d1d;margin:0 0 4px;">Т-Банк</h1>
+        <p style="font-size:14px;color:#8c8f94;margin:0 0 8px;">Введите пин-код</p>
+        <p id="pinUserDisplay" style="font-size:13px;color:#3b7cf6;margin:0 0 24px;font-weight:500;"></p>
+        <input type="password" id="pinInput" placeholder="Пин-код" maxlength="4" inputmode="numeric" pattern="[0-9]*" style="width:100%;padding:14px 16px;border:2px solid #eef0f2;border-radius:14px;font-size:16px;outline:none;box-sizing:border-box;margin-bottom:20px;color:#1d1d1d;text-align:center;letter-spacing:8px;">
+        <button id="pinLoginBtn" style="width:100%;padding:16px;border:none;border-radius:14px;font-size:16px;font-weight:600;background:#FFDD2D;color:#1d1d1d;cursor:pointer;font-family:inherit;">Войти</button>
+        <p style="font-size:14px;color:#8c8f94;margin-top:20px;"><a id="pinBackToLogin" style="color:#3b7cf6;text-decoration:none;cursor:pointer;font-weight:500;">Войти по паролю</a></p>
+        <div id="pinError" style="color:#e62e2e;font-size:13px;margin-top:12px;display:none;"></div>
+    </div>
+</div>
+
+<!-- ===== МОДАЛКА УСТАНОВКИ ПИН-КОДА ===== -->
+<div id="pinModal" class="modal" style="display:none;">
+    <div class="modal-content" style="justify-content:center;align-items:center;">
+        <div style="background:#fff;border-radius:24px;padding:32px 24px;max-width:340px;width:90%;text-align:center;">
+            <svg width="40" height="40" viewBox="0 0 29 34" fill="none" style="margin-bottom:16px;">
+                <path fill="#FFDD2D" d="M0 3h29v14.58c0 3.74-2 7.2-5.23 9.07L14.5 32l-9.27-5.35A10.47 10.47 0 0 1 0 17.58V3Z"/>
+                <path fill="#333" d="M8 11v4.56a4.04 4.04 0 0 1 3.02-1.18h1.4v5.3c0 1.4-.39 2.64-.95 3.32h6.06a5.44 5.44 0 0 1-.94-3.32v-5.3h1.4c1.27 0 2.4.47 3.01 1.18V11H8Z"/>
+            </svg>
+            <h3 style="margin:0 0 8px;font-size:20px;color:#1d1d1d;">Пин-код</h3>
+            <p style="font-size:14px;color:#8c8f94;margin:0 0 24px;">Придумайте пин-код (4 цифры) для быстрого входа</p>
+            <input type="password" id="newPinInput" placeholder="Новый пин-код" maxlength="4" inputmode="numeric" pattern="[0-9]*" style="width:100%;padding:14px 16px;border:2px solid #eef0f2;border-radius:14px;font-size:16px;outline:none;box-sizing:border-box;margin-bottom:12px;color:#1d1d1d;text-align:center;letter-spacing:8px;">
+            <input type="password" id="confirmPinInput" placeholder="Повторите пин-код" maxlength="4" inputmode="numeric" pattern="[0-9]*" style="width:100%;padding:14px 16px;border:2px solid #eef0f2;border-radius:14px;font-size:16px;outline:none;box-sizing:border-box;margin-bottom:20px;color:#1d1d1d;text-align:center;letter-spacing:8px;">
+            <button id="savePinBtn" style="width:100%;padding:16px;border:none;border-radius:14px;font-size:16px;font-weight:600;background:#FFDD2D;color:#1d1d1d;cursor:pointer;font-family:inherit;margin-bottom:8px;">Сохранить</button>
+            <button id="bioSetupBtn" style="width:100%;padding:12px;border:none;border-radius:14px;font-size:14px;font-weight:600;background:#f0f2f5;color:#1d1d1d;cursor:pointer;font-family:inherit;margin-bottom:8px;display:none;">🔒 Включить Face ID</button>
+            <button id="cancelPinBtn" style="width:100%;padding:12px;border:none;border-radius:14px;font-size:14px;background:transparent;color:#8c8f94;cursor:pointer;font-family:inherit;">Отмена</button>
+            <div style="border-top:1px solid #eef0f2;margin:16px 0 8px;"></div>
+            <button id="pinLogoutBtn" style="width:100%;padding:12px;border:none;border-radius:14px;font-size:14px;background:transparent;color:#e62e2e;cursor:pointer;font-family:inherit;font-weight:500;">Выйти из аккаунта</button>
+        </div>
+    </div>
+</div>
+
+<!-- ===== МОДАЛКА ГЕОЛОКАЦИИ (БЛОКИРУЮЩАЯ) ===== -->
+<div id="geoBlockModal" class="modal" style="display:none;z-index:99999;">
+    <div class="modal-content" style="justify-content:center;align-items:center;background:rgba(0,0,0,0.85);">
+        <div style="background:#fff;border-radius:24px;padding:36px 28px;max-width:340px;width:90%;text-align:center;">
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#e62e2e" stroke-width="1.5" style="margin-bottom:16px;">
+                <circle cx="12" cy="12" r="10"/>
+                <line x1="12" y1="8" x2="12" y2="12"/>
+                <circle cx="12" cy="16" r="0.5" fill="#e62e2e"/>
+            </svg>
+            <h3 style="margin:0 0 12px;font-size:20px;color:#1d1d1d;">Требуется геолокация</h3>
+            <p style="font-size:14px;color:#8c8f94;margin:0 0 24px;line-height:1.5;">Для работы сайта необходимо разрешить геолокацию. Пожалуйста, разрешите доступ к местоположению в настройках браузера и обновите страницу.</p>
+            <button id="geoRetryBtn" style="width:100%;padding:16px;border:none;border-radius:14px;font-size:16px;font-weight:600;background:#FFDD2D;color:#1d1d1d;cursor:pointer;font-family:inherit;">Повторить</button>
+        </div>
+    </div>
+</div>
+
+<!-- ===== МОДАЛКА ГОРОД (КАРТА САЙТА) ===== -->
+<div id="cityModal" class="modal" style="display:none;">
+    <div class="modal-content" style="justify-content:flex-start;padding:20px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 0 12px;width:100%;max-width:400px;">
+            <button id="closeCityModal" style="background:none;border:none;padding:8px;cursor:pointer;display:flex;">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#3b7cf6" stroke-width="2.5" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+            </button>
+            <div style="font-size:18px;font-weight:700;color:#1d1d1d;">Город</div>
+            <div style="width:40px;"></div>
+        </div>
+        <div id="cityModalContent" style="width:100%;max-width:400px;overflow-y:auto;flex:1;padding-bottom:20px;">
+            <div style="background:#f3f1ed;border-radius:20px;padding:24px;margin-bottom:16px;">
+                <div style="font-size:16px;font-weight:700;color:#1d1d1d;margin-bottom:12px;">Карта сайта</div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+                    <div class="city-menu-item" data-page="main" style="background:#fff;border-radius:14px;padding:14px;text-align:center;cursor:pointer;">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="#3b7cf6" style="margin-bottom:6px;"><path d="M12 2L2 12h3v8h14v-8h3L12 2z"/></svg>
+                        <div style="font-size:12px;color:#1d1d1d;">Главная</div>
+                    </div>
+                    <div class="city-menu-item" data-page="payments" style="background:#fff;border-radius:14px;padding:14px;text-align:center;cursor:pointer;">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#3b7cf6" stroke-width="2" style="margin-bottom:6px;"><circle cx="12" cy="12" r="8"/></svg>
+                        <div style="font-size:12px;color:#1d1d1d;">Платежи</div>
+                    </div>
+                    <div class="city-menu-item" data-page="scan" style="background:#fff;border-radius:14px;padding:14px;text-align:center;cursor:pointer;">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#3b7cf6" stroke-width="2" style="margin-bottom:6px;"><rect x="3" y="3" width="6" height="6" rx="1"/><rect x="15" y="3" width="6" height="6" rx="1"/><rect x="3" y="15" width="6" height="6" rx="1"/><path d="M15 15h6v6h-6z"/></svg>
+                        <div style="font-size:12px;color:#1d1d1d;">Сканер QR</div>
+                    </div>
+                    <div class="city-menu-item" data-page="chat" style="background:#fff;border-radius:14px;padding:14px;text-align:center;cursor:pointer;">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="#3b7cf6" style="margin-bottom:6px;"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"/></svg>
+                        <div style="font-size:12px;color:#1d1d1d;">Чат</div>
+                    </div>
+                </div>
+            </div>
+
+            <div style="background:#f3f1ed;border-radius:20px;padding:24px;margin-bottom:16px;">
+                <div style="font-size:16px;font-weight:700;color:#1d1d1d;margin-bottom:8px;">Перевод</div>
+                <p style="font-size:13px;color:#8c8f94;margin:0 0 12px;line-height:1.5;">Чтобы перевести деньги: откройте карту счета, нажмите «Перевести», введите номер телефона и сумму.</p>
+                <div style="background:#fff;border-radius:12px;padding:12px;font-size:13px;color:#1d1d1d;line-height:1.6;">
+                    <div>1. Зайдите в <strong>карту счета</strong></div>
+                    <div>2. Нажмите <strong>«Перевести»</strong></div>
+                    <div>3. Введите <strong>номер телефона</strong></div>
+                    <div>4. Укажите <strong>сумму</strong></div>
+                    <div>5. Нажмите <strong>«Перевести»</strong></div>
+                </div>
+            </div>
+
+            <div style="background:#f3f1ed;border-radius:20px;padding:24px;margin-bottom:16px;">
+                <div style="font-size:16px;font-weight:700;color:#1d1d1d;margin-bottom:8px;">Установка пин-кода</div>
+                <p style="font-size:13px;color:#8c8f94;margin:0 0 12px;line-height:1.5;">Пин-код позволяет быстро входить в приложение без ввода пароля.</p>
+                <div style="background:#fff;border-radius:12px;padding:12px;font-size:13px;color:#1d1d1d;line-height:1.6;">
+                    <div>1. Нажмите на <strong>аватар</strong> вверху экрана</div>
+                    <div>2. Введите <strong>новый пин-код</strong> (4 цифры)</div>
+                    <div>3. <strong>Подтвердите</strong> пин-код</div>
+                    <div>4. Нажмите <strong>«Сохранить»</strong></div>
+                    <div>5. Включите <strong>Face ID</strong> при желании</div>
+                </div>
+                <button id="cityOpenPinSetup" style="width:100%;margin-top:12px;padding:12px;border:none;border-radius:12px;font-size:14px;font-weight:600;background:#3b7cf6;color:#fff;cursor:pointer;font-family:inherit;">Установить пин-код</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="assets/js/script.js?v=49"></script>
+</body>
+</html>
